@@ -1,0 +1,97 @@
+{
+  "buttons": {
+    "login": "로그인",
+    "accept": "수락",
+    "preparing": "준비중",
+    "out_for_delivery": "배달중",
+    "complete": "완료",
+    "cancel": "취소",
+    "save": "저장",
+    "upload": "업로드",
+    "replace_upload": "교체 업로드",
+    "test_send": "테스트 발송",
+    "refresh": "새로고침",
+    "add": "추가",
+    "close": "닫기",
+    "confirm": "확인"
+  },
+  "labels": {
+    "email": "이메일",
+    "password": "비밀번호",
+    "bank_name": "은행명",
+    "account_name": "예금주",
+    "account_number": "계좌번호",
+    "is_active": "활성화",
+    "qr_image": "QR 코드 이미지",
+    "new_order_notification": "신규 주문 알림",
+    "customer_email_notification": "고객 이메일 알림",
+    "recipients": "수신자 이메일",
+    "megapay_disabled": "MegaPay 결제(예정)"
+  },
+  "status": {
+    "new": "신규",
+    "accepted": "수락",
+    "preparing": "준비중",
+    "out_for_delivery": "배달중",
+    "completed": "완료",
+    "canceled": "취소"
+  },
+  "payment": {
+    "bank": "계좌이체",
+    "cod": "착불(COD)",
+    "megapay": "MegaPay 결제(예정)"
+  },
+  "errors": {
+    "invalid_email": "이메일 형식을 확인해 주세요.",
+    "invalid_credentials": "이메일 또는 비밀번호가 올바르지 않습니다.",
+    "password_min": "비밀번호는 8자 이상이어야 합니다.",
+    "required_field": "필수 항목입니다.",
+    "account_number_min": "계좌번호는 6자리 이상이어야 합니다.",
+    "cancel_reason_min": "취소 사유를 3자 이상 입력해 주세요.",
+    "upload_failed": "업로드에 실패했습니다. 다시 시도해 주세요.",
+    "invalid_file": "PNG/JPG 파일만 업로드해 주세요.",
+    "version_mismatch": "다른 운영자가 먼저 변경했습니다. 새로고침 후 다시 시도해 주세요.",
+    "duplicate_email": "이미 추가된 이메일입니다."
+  },
+  "toasts": {
+    "saved": "저장되었습니다.",
+    "failed": "실패했습니다. 다시 시도해 주세요.",
+    "upload_complete": "업로드 완료",
+    "status_changed": "상태가 변경되었습니다.",
+    "test_sent": "테스트 메일을 보냈습니다.",
+    "test_failed": "테스트 메일 발송 실패. 설정을 확인해 주세요.",
+    "refreshed": "새로고침되었습니다."
+  },
+  "placeholders": {
+    "cancel_reason": "취소 사유를 입력해 주세요(예: 재고 부족, 주소 불가 등)",
+    "search_orders": "주문번호 / 이름 / 전화번호 검색",
+    "add_email": "이메일 추가",
+    "bank_name": "예: Vietcombank",
+    "account_number": "계좌번호 (6자 이상)"
+  },
+  "upload_states": {
+    "idle": "드래그하거나 클릭하여 업로드",
+    "requesting_signed_url": "URL 요청 중...",
+    "uploading": "업로드 중...",
+    "verifying": "검증 중...",
+    "done": "업로드 완료",
+    "failed": "업로드 실패"
+  },
+  "email_templates": {
+    "new_order_operator": {
+      "subject": "[진장키친] 신규 주문이 접수되었습니다 — {{short_id}}",
+      "text": "안녕하세요, 운영자님.\n\n신규 주문이 접수되었습니다.\n\n주문번호: {{short_id}}\n고객명: {{customer_name}}\n전화번호: {{customer_phone}}\n배송 주소: {{address}} ({{district}})\n배송 슬롯: {{slot_text}}\n결제 수단: {{payment_method}}\n합계: {{total_vnd}}\n\n주문 관리 페이지에서 확인하고 수락해 주세요:\n{{admin_url}}\n\n진장키친 시스템 발송",
+      "html": "<!DOCTYPE html><html><body style='font-family:sans-serif;background:#FFFBF5;padding:24px'><div style='max-width:480px;margin:0 auto;background:#fff;border-radius:14px;border:1px solid #E8D9C5;overflow:hidden'><div style='background:#8B5E34;padding:20px 24px'><h2 style='color:#fff;margin:0;font-size:18px'>Jin Jang's Kitchen</h2><p style='color:#E8D9C5;margin:4px 0 0;font-size:13px'>신규 주문 알림</p></div><div style='padding:24px'><p style='color:#111827;font-size:15px;margin:0 0 16px'>신규 주문이 접수되었습니다.</p><table style='width:100%;border-collapse:collapse'><tr><td style='padding:8px 0;color:#6B7280;font-size:13px;border-bottom:1px solid #E8D9C5'>주문번호</td><td style='padding:8px 0;font-weight:600;font-size:13px;border-bottom:1px solid #E8D9C5'>{{short_id}}</td></tr><tr><td style='padding:8px 0;color:#6B7280;font-size:13px;border-bottom:1px solid #E8D9C5'>고객명</td><td style='padding:8px 0;font-size:13px;border-bottom:1px solid #E8D9C5'>{{customer_name}}</td></tr><tr><td style='padding:8px 0;color:#6B7280;font-size:13px;border-bottom:1px solid #E8D9C5'>전화</td><td style='padding:8px 0;font-size:13px;border-bottom:1px solid #E8D9C5'>{{customer_phone}}</td></tr><tr><td style='padding:8px 0;color:#6B7280;font-size:13px;border-bottom:1px solid #E8D9C5'>주소</td><td style='padding:8px 0;font-size:13px;border-bottom:1px solid #E8D9C5'>{{address}} ({{district}})</td></tr><tr><td style='padding:8px 0;color:#6B7280;font-size:13px;border-bottom:1px solid #E8D9C5'>슬롯</td><td style='padding:8px 0;font-size:13px;border-bottom:1px solid #E8D9C5'>{{slot_text}}</td></tr><tr><td style='padding:8px 0;color:#6B7280;font-size:13px;border-bottom:1px solid #E8D9C5'>합계</td><td style='padding:8px 0;font-weight:700;color:#8B5E34;font-size:14px;border-bottom:1px solid #E8D9C5'>{{total_vnd}}</td></tr></table><a href='{{admin_url}}' style='display:inline-block;margin-top:20px;background:#8B5E34;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px'>주문 확인하기</a></div><div style='padding:12px 24px;background:#F5EDE0;font-size:11px;color:#6B7280'>진장키친 자동 발송 메일입니다.</div></div></body></html>"
+    },
+    "status_change_customer": {
+      "subject": "[진장키친] 주문 {{short_id}} 상태가 변경되었습니다",
+      "text": "안녕하세요, {{customer_name}}님.\n\n주문 {{short_id}}의 상태가 [{{new_status}}](으)로 변경되었습니다.\n\n슬롯: {{slot_text}}\n합계: {{total_vnd}}\n\n문의: {{support_email}}\n\n감사합니다, 진장키친",
+      "html": "<!DOCTYPE html><html><body style='font-family:sans-serif;background:#FFFBF5;padding:24px'><div style='max-width:480px;margin:0 auto;background:#fff;border-radius:14px;border:1px solid #E8D9C5;overflow:hidden'><div style='background:#8B5E34;padding:20px 24px'><h2 style='color:#fff;margin:0;font-size:18px'>Jin Jang's Kitchen</h2></div><div style='padding:24px'><p style='color:#111827;font-size:15px'>안녕하세요, <strong>{{customer_name}}</strong>님.</p><p style='color:#111827;font-size:14px'>주문 <strong>{{short_id}}</strong>의 상태가 변경되었습니다.</p><div style='background:#F5EDE0;border-radius:10px;padding:16px;margin:16px 0;text-align:center'><span style='font-size:18px;font-weight:700;color:#8B5E34'>{{new_status}}</span></div><p style='color:#6B7280;font-size:13px'>슬롯: {{slot_text}}<br>합계: {{total_vnd}}</p><p style='color:#6B7280;font-size:12px;margin-top:16px'>문의: <a href='mailto:{{support_email}}' style='color:#8B5E34'>{{support_email}}</a></p></div></div></body></html>"
+    },
+    "cancel_customer": {
+      "subject": "[진장키친] 주문 {{short_id}} 취소 안내",
+      "text": "안녕하세요, {{customer_name}}님.\n\n주문 {{short_id}}이 취소되었습니다.\n\n취소 사유: {{cancel_reason}}\n\n환불 안내: 계좌이체 결제건은 영업일 3–5일 내 환불 처리됩니다. 착불(COD) 결제건은 별도 환불이 발생하지 않습니다.\n\n문의: {{support_email}}\n\n불편을 드려 죄송합니다, 진장키친",
+      "html": "<!DOCTYPE html><html><body style='font-family:sans-serif;background:#FFFBF5;padding:24px'><div style='max-width:480px;margin:0 auto;background:#fff;border-radius:14px;border:1px solid #E8D9C5;overflow:hidden'><div style='background:#B42318;padding:20px 24px'><h2 style='color:#fff;margin:0;font-size:18px'>Jin Jang's Kitchen — 주문 취소</h2></div><div style='padding:24px'><p style='color:#111827;font-size:15px'>안녕하세요, <strong>{{customer_name}}</strong>님.</p><p style='color:#111827;font-size:14px'>주문 <strong>{{short_id}}</strong>이 취소되었습니다.</p><div style='background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:16px;margin:16px 0'><p style='color:#B91C1C;font-size:13px;margin:0'><strong>취소 사유:</strong> {{cancel_reason}}</p></div><div style='background:#F5EDE0;border-radius:10px;padding:14px;margin:12px 0'><p style='color:#8B5E34;font-size:13px;margin:0'>환불 안내: 계좌이체 결제건은 영업일 3–5일 내 환불 처리됩니다.</p></div><p style='color:#6B7280;font-size:12px;margin-top:16px'>문의: <a href='mailto:{{support_email}}' style='color:#8B5E34'>{{support_email}}</a></p></div></div></body></html>"
+    }
+  }
+}

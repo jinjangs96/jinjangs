@@ -1,0 +1,252 @@
+{
+  "screens": {
+    "/admin/login": {
+      "type": "page",
+      "id": "login-page",
+      "children": [
+        {
+          "type": "div",
+          "id": "login-card",
+          "tailwindClass": "bg-card border border-border rounded-2xl shadow-sm p-6",
+          "children": [
+            {
+              "type": "input",
+              "id": "email-input",
+              "props": { "type": "email", "label": "이메일", "required": true, "autoComplete": "email" },
+              "validations": [{ "rule": "required" }, { "rule": "email", "message": "이메일 형식을 확인해 주세요." }],
+              "states": ["idle", "error"],
+              "disabled_when": ["loading"]
+            },
+            {
+              "type": "input",
+              "id": "password-input",
+              "props": { "type": "password", "label": "비밀번호", "required": true, "minLength": 8 },
+              "validations": [{ "rule": "required" }, { "rule": "min:8", "message": "비밀번호는 8자 이상이어야 합니다." }],
+              "states": ["idle", "error"],
+              "disabled_when": ["loading"]
+            },
+            {
+              "type": "button",
+              "id": "login-button",
+              "props": { "label": "로그인", "type": "submit" },
+              "states": ["idle", "loading", "success", "error"],
+              "loading_state": { "disabled": true, "showSpinner": true, "label": "로그인 중..." },
+              "events": { "onClick": "submitLoginForm", "onSuccess": "redirect:/admin/orders" }
+            }
+          ]
+        }
+      ],
+      "errors": {
+        "invalid_email": "이메일 형식을 확인해 주세요.",
+        "invalid_credentials": "이메일 또는 비밀번호가 올바르지 않습니다.",
+        "password_min": "비밀번호는 8자 이상이어야 합니다."
+      }
+    },
+    "/admin/orders": {
+      "type": "page",
+      "id": "orders-page",
+      "state": {
+        "orders": "Order[]",
+        "activeTab": "OrderStatus | 'all'",
+        "search": "string",
+        "paymentFilter": "string",
+        "dateFilter": "string",
+        "selectedOrder": "Order | null",
+        "modalOpen": "boolean"
+      },
+      "children": [
+        {
+          "type": "tabs",
+          "id": "status-tabs",
+          "props": { "values": ["all","new","accepted","preparing","out_for_delivery","completed","canceled"] }
+        },
+        {
+          "type": "filter-bar",
+          "id": "order-filters",
+          "children": [
+            { "type": "input", "id": "search-input", "props": { "placeholder": "주문번호 / 이름 / 전화번호 검색" } },
+            {
+              "type": "select",
+              "id": "payment-filter",
+              "props": {
+                "options": [
+                  { "value": "all", "label": "전체 결제" },
+                  { "value": "bank", "label": "계좌이체" },
+                  { "value": "cod", "label": "착불(COD)" },
+                  { "value": "megapay", "label": "MegaPay 결제(예정)", "disabled": true }
+                ]
+              }
+            },
+            {
+              "type": "select",
+              "id": "date-filter",
+              "props": {
+                "options": [
+                  { "value": "all", "label": "전체 기간" },
+                  { "value": "today", "label": "오늘" },
+                  { "value": "last_7", "label": "최근 7일" }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "type": "responsive-list",
+          "id": "orders-list",
+          "desktop": "table",
+          "mobile": "card-list",
+          "columns": ["short_id","created_at","customer","total_vnd","payment_method","district","slot_text","status","actions"],
+          "row_actions": {
+            "new": ["accept", "cancel"],
+            "accepted": ["preparing", "cancel"],
+            "preparing": ["out_for_delivery", "cancel"],
+            "out_for_delivery": ["complete", "cancel"],
+            "completed": [],
+            "canceled": []
+          }
+        },
+        {
+          "type": "modal",
+          "id": "order-detail-modal",
+          "sections": ["customer_info", "address", "delivery_slot", "special_requests", "payment_info", "items_list", "status_history"],
+          "actions": {
+            "advance_status": {
+              "requires_confirm": ["completed"],
+              "confirm_dialog": { "title": "주문 완료 처리", "description": "완료 처리하시겠습니까? 이 작업은 되돌릴 수 없습니다." }
+            },
+            "cancel": {
+              "requires_reason": true,
+              "reason_field": { "type": "textarea", "min": 3, "placeholder": "취소 사유를 입력해 주세요(예: 재고 부족, 주소 불가 등)" }
+            }
+          },
+          "concurrency": {
+            "field": "expectedVersion",
+            "error_message": "다른 운영자가 먼저 변경했습니다. 새로고침 후 다시 시도해 주세요."
+          }
+        }
+      ]
+    },
+    "/admin/bank-accounts": {
+      "type": "page",
+      "id": "bank-accounts-page",
+      "state": {
+        "accounts": "BankAccount[]",
+        "dialogOpen": "boolean",
+        "editingAccount": "BankAccount | null",
+        "uploadState": "idle | requesting_signed_url | uploading | verifying | done | failed",
+        "previewUrl": "string | null"
+      },
+      "children": [
+        {
+          "type": "account-list",
+          "id": "bank-account-list",
+          "item_fields": ["bank_name","account_name","account_number","qr_image","is_active","sort_order"],
+          "item_actions": ["toggle_active", "edit"]
+        },
+        {
+          "type": "dialog",
+          "id": "bank-account-form",
+          "fields": [
+            { "id": "bank_name", "type": "input", "required": true, "label": "은행명", "validation": "min:1" },
+            { "id": "account_name", "type": "input", "required": true, "label": "예금주", "validation": "min:1" },
+            { "id": "account_number", "type": "input", "required": true, "label": "계좌번호", "validation": "min:6", "inputMode": "numeric" },
+            { "id": "is_active", "type": "switch", "label": "활성화", "default": true },
+            {
+              "id": "qr_upload",
+              "type": "file-upload",
+              "required_when": "is_active=true",
+              "accept": ["image/png","image/jpeg"],
+              "upload_flow": ["idle","requesting_signed_url","uploading","verifying","done|failed"],
+              "upload_steps": {
+                "1": "POST /api/admin/bank-qr/signed-upload -> {path, token}",
+                "2": "PUT supabase uploadToSignedUrl",
+                "3": "POST /api/admin/bank-accounts/update-qr"
+              },
+              "errors": {
+                "upload_failed": "업로드에 실패했습니다. 다시 시도해 주세요.",
+                "invalid_file": "PNG/JPG 파일만 업로드해 주세요."
+              },
+              "features": ["drag_and_drop", "browse", "preview", "replace"]
+            }
+          ]
+        }
+      ]
+    },
+    "/admin/notifications": {
+      "type": "page",
+      "id": "notifications-page",
+      "state": {
+        "enabled": "boolean",
+        "recipients": "NotificationRecipient[]",
+        "logs": "NotificationLog[]",
+        "sendingTest": "boolean",
+        "customerEmailEnabled": "boolean"
+      },
+      "children": [
+        {
+          "type": "settings-card",
+          "id": "new-order-notification",
+          "fields": [
+            { "id": "enabled", "type": "switch", "label": "신규 주문 알림", "default": true },
+            { "id": "recipients", "type": "email-list", "label": "수신자 이메일", "validation": "email", "add_on_enter": true },
+            { "id": "test_send", "type": "button", "label": "테스트 발송", "disabled_when": ["sendingTest", "!enabled", "recipients.length===0"], "states": ["idle", "loading"] }
+          ]
+        },
+        {
+          "type": "settings-card",
+          "id": "customer-email-notification",
+          "fields": [
+            { "id": "customerEmailEnabled", "type": "switch", "label": "고객 이메일 알림", "default": false, "mvp1_note": "기본 OFF" }
+          ]
+        },
+        {
+          "type": "table",
+          "id": "notification-logs",
+          "columns": ["type","status","created_at","error"]
+        }
+      ]
+    },
+    "/admin/dashboard": {
+      "type": "page",
+      "id": "dashboard-page",
+      "children": [
+        {
+          "type": "alert-banner",
+          "id": "failed-email-banner",
+          "show_when": "failedEmailCount > 0",
+          "variant": "warning"
+        },
+        {
+          "type": "kpi-grid",
+          "id": "kpi-cards",
+          "cards": ["new_orders","in_progress","completed","canceled"]
+        },
+        {
+          "type": "revenue-card",
+          "id": "today-revenue"
+        },
+        {
+          "type": "table",
+          "id": "recent-orders",
+          "limit": 5,
+          "columns": ["short_id","customer","total_vnd","payment_method","slot_text","status"]
+        }
+      ]
+    }
+  },
+  "roles": {
+    "owner": { "permissions": ["all_crud"] },
+    "admin": { "permissions": ["all_crud"] },
+    "ops": { "permissions": ["order_status_change"], "restricted": ["bank_accounts_edit", "notification_settings_edit"] },
+    "viewer": { "permissions": ["read_only"] }
+  },
+  "audit": {
+    "on_status_change": "insert order_status_history row"
+  },
+  "pg_mvp2": {
+    "provider": "MegaPay (VNPT EPAY)",
+    "webhook_endpoint": "/api/webhooks/megapay",
+    "signature_method": "merchant_key_secret_based",
+    "mvp1_ui": "disabled option in payment selector with label '{{labels.megapay_disabled}}'"
+  }
+}
