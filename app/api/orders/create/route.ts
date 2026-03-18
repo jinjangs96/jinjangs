@@ -5,6 +5,7 @@ type CheckoutItemOption = {
   group_name: string
   option_name: string
   price_delta_vnd: number
+  quantity?: number
 }
 
 type CheckoutItem = {
@@ -111,7 +112,10 @@ export async function POST(request: Request) {
     }
 
     for (const item of body.items) {
-      const optionsTotal = (item.selected_options || []).reduce((sum, option) => sum + (option.price_delta_vnd || 0), 0)
+      const optionsTotal = (item.selected_options || []).reduce(
+        (sum, option) => sum + (option.price_delta_vnd || 0) * Math.max(0, Math.floor(option.quantity ?? 1)),
+        0
+      )
       const unitPrice = item.base_price_vnd + optionsTotal
       const lineTotal = unitPrice * item.quantity
 
@@ -135,16 +139,35 @@ export async function POST(request: Request) {
 
       if (item.selected_options?.length) {
         const optionRows = item.selected_options.map((option) => ({
+          quantity: Math.max(1, Math.floor(option.quantity ?? 1)),
           order_item_id: orderItemRow.id,
           option_group_name_snapshot: option.group_name,
-          option_value_name_snapshot: option.option_name,
+          option_value_name_snapshot:
+            Math.max(0, Math.floor(option.quantity ?? 1)) > 1
+              ? `${option.option_name} x${Math.max(0, Math.floor(option.quantity ?? 1))}`
+              : option.option_name,
           price_delta_vnd: option.price_delta_vnd || 0,
         }))
 
         const { error: optionError } = await admin.from('order_item_option_selections').insert(optionRows)
         if (optionError) {
-          await cleanupOrder()
-          return NextResponse.json({ error: optionError.message }, { status: 400 })
+          // DB에 quantity 컬럼이 아직 없더라도 기존 동작을 깨지 않기 위해 폴백
+          const msg = optionError.message || ''
+          const looksLikeMissingQuantityColumn =
+            msg.includes('column') && msg.includes('quantity') && msg.includes('does not exist')
+          if (looksLikeMissingQuantityColumn) {
+            const fallbackRows = optionRows.map(({ quantity: _q, ...rest }) => rest)
+            const { error: fallbackError } = await admin
+              .from('order_item_option_selections')
+              .insert(fallbackRows)
+            if (fallbackError) {
+              await cleanupOrder()
+              return NextResponse.json({ error: fallbackError.message }, { status: 400 })
+            }
+          } else {
+            await cleanupOrder()
+            return NextResponse.json({ error: optionError.message }, { status: 400 })
+          }
         }
       }
     }
