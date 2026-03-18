@@ -19,11 +19,20 @@ export async function POST(request: Request) {
     const productId = String(formData.get('productId') ?? 'temp')
 
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: '업로드할 파일이 필요합니다.' }, { status: 400 })
+      console.error('[product-image-upload] 400: file missing or not File', {
+        hasFile: !!file,
+        formKeys: Array.from(formData.keys()),
+      })
+      return NextResponse.json({ error: '이미지 파일이 없습니다. (FormData key: file)' }, { status: 400 })
     }
 
     if (!ALLOWED_TYPES.has(file.type)) {
-      return NextResponse.json({ error: 'JPG, PNG, WEBP 형식만 업로드할 수 있습니다.' }, { status: 400 })
+      console.warn('[product-image-upload] 400: disallowed type', {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      })
+      return NextResponse.json({ error: 'JPG, PNG, WEBP만 업로드할 수 있습니다.' }, { status: 400 })
     }
 
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
@@ -38,7 +47,18 @@ export async function POST(request: Request) {
       .upload(filePath, fileBuffer, { contentType: file.type, upsert: false })
 
     if (uploadError) {
-      return NextResponse.json({ error: uploadError.message }, { status: 400 })
+      console.error('[product-image-upload] 400: storage upload failed', {
+        bucket,
+        path: filePath,
+        name: file.name,
+        size: file.size,
+        message: uploadError.message,
+      })
+      const userMsg =
+        uploadError.message?.includes('Bucket') || uploadError.message?.includes('bucket')
+          ? `저장소 버킷을 사용할 수 없습니다. (${bucket}) Supabase 대시보드에서 버킷 생성 및 정책을 확인하세요.`
+          : `저장소 업로드 실패: ${uploadError.message}`
+      return NextResponse.json({ error: userMsg }, { status: 400 })
     }
 
     const { data: publicData } = admin.storage.from(bucket).getPublicUrl(filePath)

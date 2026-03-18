@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { Plus, Search, Edit, Trash2, GripVertical, Flame } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -54,6 +54,8 @@ export default function AdminProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState<ProductCategory | 'all'>('all')
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -289,7 +291,7 @@ export default function AdminProductsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">메뉴 관리</h1>
           <p className="text-sm text-muted-foreground">상품을 추가하고 관리합니다</p>
-          <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">※ 현재 기본 상품 정보(이름·가격·카테고리)만 저장됩니다. 이미지·옵션은 DB 연동 전이라 저장되지 않습니다.</p>
+          <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">※ 대표 이미지는 저장됩니다. 옵션은 아직 저장되지 않습니다.</p>
         </div>
         <Button onClick={handleCreate}>
           <Plus className="w-4 h-4 mr-2" />
@@ -465,10 +467,9 @@ export default function AdminProductsPage() {
               </div>
             </div>
 
-            {/* Images - 업로드 비활성화 */}
+            {/* Images */}
             <div className="space-y-4 border-b pb-4">
               <h3 className="font-semibold text-sm">이미지 관리</h3>
-              <p className="text-xs text-amber-600 dark:text-amber-500">현재 이미지 업로드는 비활성화되어 있습니다.</p>
               <div className="border-2 border-dashed rounded-lg p-6 text-center bg-muted/50">
                 <div className="relative w-20 h-20 rounded overflow-hidden bg-muted mx-auto mb-2 flex items-center justify-center">
                   {(() => {
@@ -480,7 +481,65 @@ export default function AdminProductsPage() {
                     )
                   })()}
                 </div>
-                <p className="text-xs text-muted-foreground">기본 상품 정보만 저장됩니다</p>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file || !editingProduct) return
+                    setIsUploadingImage(true)
+                    try {
+                      const token = await getAccessToken()
+                      const formData = new FormData()
+                      formData.set('file', file)
+                      formData.set('productId', editingProduct.id || 'temp')
+                      const res = await fetch('/api/admin/uploads/product-image', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}` },
+                        body: formData,
+                      })
+                      let data: { error?: string; publicUrl?: string }
+                      try {
+                        data = (await res.json()) as { error?: string; publicUrl?: string }
+                      } catch {
+                        data = {}
+                      }
+                      if (!res.ok) {
+                        toast.error(getApiError(data, '이미지 업로드에 실패했습니다.'))
+                        return
+                      }
+                      const publicUrl = data.publicUrl
+                      if (publicUrl) {
+                        setEditingProduct((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                image_url: publicUrl,
+                                images: [{ id: 'uploaded', product_id: prev.id || '', url: publicUrl, alt_text: prev.name_ko || '상품 이미지', is_featured: true, display_order: 0, uploaded_at: new Date().toISOString() }],
+                              }
+                            : null
+                        )
+                        toast.success('이미지가 적용되었습니다. 저장 버튼을 눌러 반영하세요.')
+                      }
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : '이미지 업로드 중 오류가 발생했습니다.')
+                    } finally {
+                      setIsUploadingImage(false)
+                      e.target.value = ''
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isUploadingImage}
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  {isUploadingImage ? '업로드 중...' : '이미지 선택'}
+                </Button>
               </div>
             </div>
 
@@ -785,7 +844,7 @@ export default function AdminProductsPage() {
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <p className="text-xs text-muted-foreground sm:mr-auto self-start">기본 정보만 저장됩니다</p>
+            <p className="text-xs text-muted-foreground sm:mr-auto self-start">기본 정보와 대표 이미지가 저장됩니다</p>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>취소</Button>
             <Button onClick={handleSave} disabled={isSaving}>{isSaving ? '저장 중...' : '저장'}</Button>
           </DialogFooter>

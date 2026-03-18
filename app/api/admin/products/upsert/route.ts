@@ -35,7 +35,8 @@ export async function POST(request: Request) {
     const body = (await request.json()) as UpsertProductBody
     const product = body.product
     if (!product) {
-      return NextResponse.json({ error: 'product 데이터가 필요합니다.' }, { status: 400 })
+      console.error('[products-upsert] 400: product missing', { hasProduct: !!body.product })
+      return NextResponse.json({ error: '상품 데이터가 필요합니다. (body.product)' }, { status: 400 })
     }
 
     const isNew = !product.id || String(product.id).trim() === ''
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     const priceVnd = Math.max(0, Math.floor(Number(product.base_price_vnd) || 0))
     const isActive = Boolean(product.is_available ?? true)
 
+    const imageUrl = typeof product.image_url === 'string' && product.image_url.trim() ? product.image_url.trim() : null
     const payload = {
       slug: safeSlug,
       category,
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
       title: { ko: titleKo },
       price_vnd: priceVnd,
       is_active: isActive,
+      image_url: imageUrl,
     }
 
     const admin = getSupabaseAdminClient()
@@ -73,10 +76,15 @@ export async function POST(request: Request) {
     if (productError) {
       const err = productError as { message?: string; code?: string; details?: string; hint?: string }
       const code = err.code ?? ''
-      let userMsg = err.message ?? 'products 저장 실패'
+      let userMsg = err.message ?? '상품 저장에 실패했습니다.'
       if (code === '23505' && (err.message?.includes('slug') || err.message?.includes('products_slug_key'))) {
         userMsg = '이미 사용 중인 URL(slug)입니다. 다른 이름이나 URL을 사용해주세요.'
+      } else if (code === '23502') {
+        userMsg = `필수 항목이 비어 있습니다. ${err.message ?? ''}`.trim()
+      } else if (err.message?.includes('column') && err.message?.includes('does not exist')) {
+        userMsg = `DB 컬럼 오류: ${err.message} (마이그레이션 필요할 수 있음)`
       }
+      console.error('[products-upsert] 400: DB error', { code, message: err.message, details: err.details })
       return NextResponse.json(
         { error: userMsg, code, details: err.details, hint: err.hint },
         { status: 400 }
