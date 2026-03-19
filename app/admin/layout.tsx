@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -33,78 +33,80 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { StaffProvider, useStaff, ROLE_LABELS } from '@/lib/staff-context'
+import { StaffProvider, useStaff } from '@/lib/staff-context'
+import { AdminLocaleProvider, useAdminLocale } from '@/lib/admin-locale-context'
+import { getAdminLabel, ADMIN_SIDEBAR_LABELS, ADMIN_ROLE_LABELS, ADMIN_ACCESS_LABELS } from '@/lib/admin-i18n'
 import type { StaffPermission } from '@/lib/types'
 
 interface NavItem {
   href: string
-  label: string
+  labelKey: string
   icon: React.ComponentType<{ className?: string }>
   badge?: number
   permission?: StaffPermission
 }
 
 interface NavSection {
-  title: string
+  titleKey: string
   items: NavItem[]
 }
 
-const NAV_SECTIONS: NavSection[] = [
+const NAV_STRUCTURE: NavSection[] = [
   {
-    title: '주문',
+    titleKey: 'section_orders',
     items: [
-      { href: '/admin/dashboard', label: '대시보드', icon: LayoutDashboard },
-      { href: '/admin/orders', label: '주문 관리', icon: ShoppingBag, badge: 3, permission: 'orders.view' },
-      { href: '/admin/manual-orders/new', label: '수동 주문 등록', icon: ClipboardList, permission: 'orders.create' },
+      { href: '/admin/dashboard', labelKey: 'nav_dashboard', icon: LayoutDashboard },
+      { href: '/admin/orders', labelKey: 'nav_orders', icon: ShoppingBag, badge: 3, permission: 'orders.view' },
+      { href: '/admin/manual-orders/new', labelKey: 'nav_manual_order', icon: ClipboardList, permission: 'orders.create' },
     ],
   },
   {
-    title: '재고',
+    titleKey: 'section_inventory',
     items: [
-      { href: '/admin/inventory', label: '재고 현황', icon: Warehouse, permission: 'inventory.view' },
-      { href: '/admin/inventory/movements', label: '입출고 내역', icon: ArrowRightLeft, permission: 'inventory.view' },
+      { href: '/admin/inventory', labelKey: 'nav_inventory', icon: Warehouse, permission: 'inventory.view' },
+      { href: '/admin/inventory/movements', labelKey: 'nav_movements', icon: ArrowRightLeft, permission: 'inventory.view' },
     ],
   },
   {
-    title: '상품',
+    titleKey: 'section_products',
     items: [
-      { href: '/admin/products', label: '메뉴 관리', icon: Package, permission: 'products.view' },
-      { href: '/admin/hero-banners', label: '배너 관리', icon: Image, permission: 'settings.edit' },
+      { href: '/admin/products', labelKey: 'nav_products', icon: Package, permission: 'products.view' },
+      { href: '/admin/hero-banners', labelKey: 'nav_banners', icon: Image, permission: 'settings.edit' },
     ],
   },
   {
-    title: '결제/배송',
+    titleKey: 'section_payment_delivery',
     items: [
-      { href: '/admin/payment-reconciliation', label: '결제 확인', icon: CreditCard, permission: 'payments.view' },
-      { href: '/admin/delivery-zones', label: '배송 구역', icon: MapPin, permission: 'settings.view' },
-      { href: '/admin/bank-accounts', label: '계좌/QR 관리', icon: CreditCard, permission: 'settings.view' },
+      { href: '/admin/payment-reconciliation', labelKey: 'nav_payment_recon', icon: CreditCard, permission: 'payments.view' },
+      { href: '/admin/delivery-zones', labelKey: 'nav_delivery_zones', icon: MapPin, permission: 'settings.view' },
+      { href: '/admin/bank-accounts', labelKey: 'nav_bank_accounts', icon: CreditCard, permission: 'settings.view' },
     ],
   },
   {
-    title: '리포트',
+    titleKey: 'section_reports',
     items: [
-      { href: '/admin/reports', label: '매출 요약', icon: BarChart3, permission: 'reports.view' },
-      { href: '/admin/reports/monthly', label: '월별 분석', icon: CalendarDays, permission: 'reports.view' },
-      { href: '/admin/reports/products', label: '상품별 분석', icon: TrendingUp, permission: 'reports.view' },
+      { href: '/admin/reports', labelKey: 'nav_sales_summary', icon: BarChart3, permission: 'reports.view' },
+      { href: '/admin/reports/monthly', labelKey: 'nav_monthly', icon: CalendarDays, permission: 'reports.view' },
+      { href: '/admin/reports/products', labelKey: 'nav_products_analysis', icon: TrendingUp, permission: 'reports.view' },
     ],
   },
   {
-    title: '회원',
+    titleKey: 'section_members',
     items: [
-      { href: '/admin/members', label: '회원 관리', icon: Users, permission: 'orders.view' },
-      { href: '/admin/reviews', label: '리뷰 관리', icon: Star, permission: 'orders.view' },
-      { href: '/admin/points', label: '포인트 정책', icon: Gift, permission: 'settings.view' },
+      { href: '/admin/members', labelKey: 'nav_members', icon: Users, permission: 'orders.view' },
+      { href: '/admin/reviews', labelKey: 'nav_reviews', icon: Star, permission: 'orders.view' },
+      { href: '/admin/points', labelKey: 'nav_points', icon: Gift, permission: 'settings.view' },
     ],
   },
   {
-    title: '시스템',
+    titleKey: 'section_system',
     items: [
-      { href: '/admin/users', label: '직원 관리', icon: UserPlus, permission: 'users.view' },
-      { href: '/admin/notifications', label: '알림 설정', icon: Bell, permission: 'settings.view' },
-      { href: '/admin/floating-icons', label: '플로팅 아이콘', icon: MousePointer, permission: 'settings.edit' },
-      { href: '/admin/footer', label: '푸터 관리', icon: Footprints, permission: 'settings.edit' },
-      { href: '/admin/site-settings', label: '사이트 설정', icon: Settings, permission: 'settings.edit' },
-      { href: '/admin/policies', label: '약관/정책', icon: FileText, permission: 'settings.edit' },
+      { href: '/admin/users', labelKey: 'nav_users', icon: UserPlus, permission: 'users.view' },
+      { href: '/admin/notifications', labelKey: 'nav_notifications', icon: Bell, permission: 'settings.view' },
+      { href: '/admin/floating-icons', labelKey: 'nav_floating_icons', icon: MousePointer, permission: 'settings.edit' },
+      { href: '/admin/footer', labelKey: 'nav_footer', icon: Footprints, permission: 'settings.edit' },
+      { href: '/admin/site-settings', labelKey: 'nav_site_settings', icon: Settings, permission: 'settings.edit' },
+      { href: '/admin/policies', labelKey: 'nav_policies', icon: FileText, permission: 'settings.edit' },
     ],
   },
 ]
@@ -118,6 +120,7 @@ function AdminSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { locale, setLocale } = useAdminLocale()
   const { currentStaff, hasPermission, logout } = useStaff()
 
   const handleLogout = async () => {
@@ -125,13 +128,18 @@ function AdminSidebar({
     router.push('/admin/login')
   }
 
-  // Filter nav items based on permissions
-  const filteredSections = NAV_SECTIONS.map(section => ({
-    ...section,
-    items: section.items.filter(item => 
-      !item.permission || hasPermission(item.permission)
-    ),
-  })).filter(section => section.items.length > 0)
+  const navSections = useMemo(() =>
+    NAV_STRUCTURE.map(section => ({
+      title: getAdminLabel(locale, ADMIN_SIDEBAR_LABELS, section.titleKey),
+      items: section.items
+        .filter(item => !item.permission || hasPermission(item.permission))
+        .map(item => ({
+          ...item,
+          label: getAdminLabel(locale, ADMIN_SIDEBAR_LABELS, item.labelKey),
+        })),
+    })).filter(section => section.items.length > 0),
+    [locale, hasPermission]
+  )
 
   return (
     <aside
@@ -147,7 +155,7 @@ function AdminSidebar({
         </div>
         <div className="min-w-0">
           <p className="font-bold text-sm leading-tight text-sidebar-foreground truncate">Jin Jang's Kitchen</p>
-          <p className="text-xs text-muted-foreground">ERP 어드민</p>
+          <p className="text-xs text-muted-foreground">{getAdminLabel(locale, ADMIN_SIDEBAR_LABELS, 'erp_admin')}</p>
         </div>
         <button className="ml-auto lg:hidden" onClick={() => setSidebarOpen(false)}>
           <X className="w-4 h-4 text-muted-foreground" />
@@ -156,7 +164,7 @@ function AdminSidebar({
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
-        {filteredSections.map((section) => (
+        {navSections.map((section) => (
           <div key={section.title}>
             <p className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               {section.title}
@@ -191,6 +199,30 @@ function AdminSidebar({
         ))}
       </nav>
 
+      {/* Locale toggle */}
+      <div className="px-3 py-2 border-t border-sidebar-border">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setLocale('ko')}
+            className={cn(
+              'flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors',
+              locale === 'ko' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-sidebar-accent/50'
+            )}
+          >
+            KO
+          </button>
+          <button
+            onClick={() => setLocale('vi')}
+            className={cn(
+              'flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors',
+              locale === 'vi' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-sidebar-accent/50'
+            )}
+          >
+            VI
+          </button>
+        </div>
+      </div>
+
       {/* User + Logout */}
       <div className="px-3 py-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-3 py-2 mb-1">
@@ -198,9 +230,9 @@ function AdminSidebar({
             {currentStaff?.name?.[0] || 'U'}
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-sidebar-foreground truncate">{currentStaff?.name || '미로그인'}</p>
+            <p className="text-xs font-semibold text-sidebar-foreground truncate">{currentStaff?.name || getAdminLabel(locale, ADMIN_SIDEBAR_LABELS, 'not_logged_in')}</p>
             <p className="text-xs text-muted-foreground">
-              {currentStaff ? ROLE_LABELS[currentStaff.role] : '-'}
+              {currentStaff ? getAdminLabel(locale, ADMIN_ROLE_LABELS, currentStaff.role) : '-'}
             </p>
           </div>
         </div>
@@ -209,7 +241,7 @@ function AdminSidebar({
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-sidebar-accent/50 hover:text-destructive transition-colors w-full"
         >
           <LogOut className="w-4 h-4" />
-          로그아웃
+          {getAdminLabel(locale, ADMIN_SIDEBAR_LABELS, 'logout')}
         </button>
       </div>
     </aside>
@@ -219,6 +251,7 @@ function AdminSidebar({
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { locale } = useAdminLocale()
   const { currentStaff, isLoading, canAccess } = useStaff()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isLoginPage = pathname === '/admin/login'
@@ -236,7 +269,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
-        관리자 권한을 확인하는 중입니다...
+        {getAdminLabel(locale, ADMIN_ACCESS_LABELS, 'checking')}
       </div>
     )
   }
@@ -244,7 +277,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   if (!currentStaff) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
-        로그인 페이지로 이동 중입니다...
+        {getAdminLabel(locale, ADMIN_ACCESS_LABELS, 'redirecting')}
       </div>
     )
   }
@@ -253,10 +286,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center space-y-3">
-          <p className="text-lg font-semibold text-foreground">접근 권한이 없습니다</p>
-          <p className="text-sm text-muted-foreground">현재 계정 역할로는 이 메뉴를 사용할 수 없습니다.</p>
+          <p className="text-lg font-semibold text-foreground">{getAdminLabel(locale, ADMIN_ACCESS_LABELS, 'no_access_title')}</p>
+          <p className="text-sm text-muted-foreground">{getAdminLabel(locale, ADMIN_ACCESS_LABELS, 'no_access_desc')}</p>
           <Link href="/admin/dashboard">
-            <Button>대시보드로 이동</Button>
+            <Button>{getAdminLabel(locale, ADMIN_ACCESS_LABELS, 'go_dashboard')}</Button>
           </Link>
         </div>
       </div>
@@ -299,7 +332,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <StaffProvider>
-      <AdminLayoutContent>{children}</AdminLayoutContent>
+      <AdminLocaleProvider>
+        <AdminLayoutContent>{children}</AdminLayoutContent>
+      </AdminLocaleProvider>
     </StaffProvider>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Phone, MapPin, Clock, MessageSquare, CreditCard, ChevronRight, Loader2 } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Phone, MapPin, Clock, MessageSquare, CreditCard, ChevronRight, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   AlertDialog,
@@ -20,21 +20,8 @@ import { StatusBadge } from './status-badge'
 import type { Order, OrderStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-
-const PAYMENT_LABELS: Record<string, string> = {
-  bank_transfer: '계좌이체',
-  qr_transfer: 'QR 송금',
-  bank: '계좌이체',
-  cod: '착불(COD)',
-  megapay: 'MegaPay',
-}
-
-const NEXT_STATUS: Partial<Record<OrderStatus, { status: OrderStatus; label: string }>> = {
-  new: { status: 'accepted', label: '수락' },
-  accepted: { status: 'preparing', label: '준비중' },
-  preparing: { status: 'out_for_delivery', label: '배달중' },
-  out_for_delivery: { status: 'completed', label: '완료' },
-}
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_COMMON_LABELS, ADMIN_ORDER_DETAIL_LABELS, ADMIN_ORDER_STATUS_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 function formatVND(amount: number) {
   return amount.toLocaleString('vi-VN') + '₫'
@@ -57,12 +44,34 @@ interface OrderDetailModalProps {
 }
 
 export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: OrderDetailModalProps) {
+  const { locale } = useAdminLocale()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelReasonError, setCancelReasonError] = useState('')
   const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const PAYMENT_LABELS = useMemo(
+    () => ({
+      bank_transfer: getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'payment_bank_transfer'),
+      qr_transfer: getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'payment_qr_transfer'),
+      bank: getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'payment_bank'),
+      cod: getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'payment_cod'),
+      megapay: getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'payment_megapay'),
+    }),
+    [locale]
+  )
+
+  const NEXT_STATUS = useMemo(
+    (): Partial<Record<OrderStatus, { status: OrderStatus; label: string }>> => ({
+      new: { status: 'accepted', label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'accepted') },
+      accepted: { status: 'preparing', label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'preparing') },
+      preparing: { status: 'out_for_delivery', label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'out_for_delivery') },
+      out_for_delivery: { status: 'completed', label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'completed') },
+    }),
+    [locale]
+  )
 
   if (!order) return null
 
@@ -82,7 +91,7 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
     setLoading(true)
     try {
       await onStatusChange(order.id, status, reason)
-      toast.success('상태가 변경되었습니다.')
+      toast.success(getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'status_changed'))
       setConfirmOpen(false)
       setCancelOpen(false)
       setCancelReason('')
@@ -90,9 +99,9 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (msg.includes('version')) {
-        toast.error('다른 운영자가 먼저 변경했습니다. 새로고침 후 다시 시도해 주세요.')
+        toast.error(getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'version_conflict'))
       } else {
-        toast.error('실패했습니다. 다시 시도해 주세요.')
+        toast.error(getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'update_failed'))
       }
     } finally {
       setLoading(false)
@@ -101,7 +110,7 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
 
   const handleCancelSubmit = () => {
     if (cancelReason.trim().length < 3) {
-      setCancelReasonError('취소 사유를 3자 이상 입력해 주세요.')
+      setCancelReasonError(getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'cancel_reason_min'))
       return
     }
     setCancelReasonError('')
@@ -117,7 +126,7 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-lg font-bold">
-                주문 상세 — {order.short_id}
+                {getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'title')} — {order.short_id}
               </DialogTitle>
               <StatusBadge status={order.status} />
             </div>
@@ -125,38 +134,38 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
 
           <div className="px-6 py-5 space-y-6">
             {/* Customer Info */}
-            <Section title="고객 정보">
-              <InfoRow icon={<span className="w-4 h-4 text-muted-foreground font-medium text-xs">이름</span>} value={order.customer_name} />
+            <Section title={getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'customer_info')}>
+              <InfoRow icon={<span className="w-4 h-4 text-muted-foreground font-medium text-xs">{getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'name')}</span>} value={order.customer_name} />
               <InfoRow icon={<Phone className="w-4 h-4 text-muted-foreground" />} value={order.customer_phone} />
             </Section>
 
             {/* Address */}
-            <Section title="배송 주소">
+            <Section title={getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'delivery_address')}>
               <InfoRow icon={<MapPin className="w-4 h-4 text-muted-foreground" />} value={`${order.address} (${order.district})`} />
               <InfoRow icon={<Clock className="w-4 h-4 text-muted-foreground" />} value={order.slot_text} />
             </Section>
 
             {/* Special requests */}
             {order.special_requests && (
-              <Section title="요청사항">
+              <Section title={getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'special_requests')}>
                 <InfoRow icon={<MessageSquare className="w-4 h-4 text-muted-foreground" />} value={order.special_requests} />
               </Section>
             )}
 
             {/* Payment */}
-            <Section title="결제 정보">
+            <Section title={getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'payment_info')}>
               <InfoRow
                 icon={<CreditCard className="w-4 h-4 text-muted-foreground" />}
-                value={PAYMENT_LABELS[order.payment_method] ?? order.payment_method}
+                value={(PAYMENT_LABELS as Record<string, string>)[order.payment_method] ?? order.payment_method}
               />
               <div className="flex items-center justify-between pt-2 border-t border-border">
-                <span className="text-sm text-muted-foreground">합계</span>
+                <span className="text-sm text-muted-foreground">{getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'total')}</span>
                 <span className="font-bold text-foreground text-base">{formatVND(order.total_vnd)}</span>
               </div>
             </Section>
 
             {/* Items */}
-            <Section title="주문 상품">
+            <Section title={getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'order_items')}>
               <div className="space-y-2">
                 {order.items.map((item) => (
                   <div key={item.id} className="flex items-start justify-between gap-4">
@@ -173,7 +182,7 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
             </Section>
 
             {/* Status History */}
-            <Section title="상태 이력">
+            <Section title={getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'status_history')}>
               <div className="space-y-2">
                 {order.status_history.map((h, i) => (
                   <div key={i} className="flex items-center gap-3">
@@ -191,7 +200,7 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
 
             {/* Cancel reason */}
             {order.cancel_reason && (
-              <Section title="취소 사유">
+              <Section title={getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'cancel_reason')}>
                 <p className="text-sm text-foreground">{order.cancel_reason}</p>
               </Section>
             )}
@@ -207,7 +216,7 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
                   className="rounded-xl border-destructive text-destructive hover:bg-destructive/10"
                   disabled={loading}
                 >
-                  취소
+                  {getAdminLabel(locale, ADMIN_COMMON_LABELS, 'cancel')}
                 </Button>
               )}
               {nextStep && (
@@ -229,20 +238,22 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>주문 완료 처리</AlertDialogTitle>
+            <AlertDialogTitle>{getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'confirm_complete_title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              주문 {order.short_id}을 완료 처리하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+              {getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'confirm_complete_desc').replace('{id}', order.short_id)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl" disabled={loading}>취소</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl" disabled={loading}>
+              {getAdminLabel(locale, ADMIN_COMMON_LABELS, 'cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction
               className="rounded-xl bg-ok text-ok-foreground hover:bg-ok/90"
               onClick={() => handleStatusUpdate('completed')}
               disabled={loading}
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              완료 확인
+              {getAdminLabel(locale, ADMIN_COMMON_LABELS, 'confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -252,17 +263,17 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
       <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>주문 취소</AlertDialogTitle>
+            <AlertDialogTitle>{getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'cancel_order_title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              취소 사유를 입력해 주세요.
+              {getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'cancel_order_desc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="px-1 pb-2">
-            <Label className="text-sm font-medium">취소 사유 <span className="text-destructive">*</span></Label>
+            <Label className="text-sm font-medium">{getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'cancel_reason_label')} <span className="text-destructive">*</span></Label>
             <Textarea
               className="mt-2 rounded-xl resize-none"
               rows={3}
-              placeholder="취소 사유를 입력해 주세요(예: 재고 부족, 주소 불가 등)"
+              placeholder={getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'cancel_reason_placeholder')}
               value={cancelReason}
               onChange={(e) => { setCancelReason(e.target.value); setCancelReasonError('') }}
             />
@@ -271,14 +282,16 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
             )}
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl" disabled={loading}>닫기</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl" disabled={loading}>
+              {getAdminLabel(locale, ADMIN_COMMON_LABELS, 'close')}
+            </AlertDialogCancel>
             <AlertDialogAction
               className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleCancelSubmit}
               disabled={loading}
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-              취소 처리
+              {getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'cancel_submit')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

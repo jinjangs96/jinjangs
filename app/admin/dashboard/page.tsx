@@ -7,6 +7,8 @@ import { StatusBadge } from '@/components/admin/status-badge'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_DASHBOARD_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 function formatVND(n: number) {
   return n.toLocaleString('vi-VN') + '₫'
@@ -30,46 +32,15 @@ const INITIAL_STATS: DashboardStats = {
   payments: 0,
 }
 
-const KPI_CARDS = [
-  {
-    key: 'new',
-    label: '주문 수',
-    icon: ShoppingBag,
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-    border: 'border-blue-100',
-    getValue: (s: DashboardStats) => s.orders,
-  },
-  {
-    key: 'progress',
-    label: '회원 수',
-    icon: Clock,
-    color: 'text-amber-600',
-    bg: 'bg-amber-50',
-    border: 'border-amber-100',
-    getValue: (s: DashboardStats) => s.members,
-  },
-  {
-    key: 'completed',
-    label: '재고 품목',
-    icon: CheckCircle2,
-    color: 'text-green-600',
-    bg: 'bg-green-50',
-    border: 'border-green-100',
-    getValue: (s: DashboardStats) => s.inventoryItems,
-  },
-  {
-    key: 'canceled',
-    label: '결제 건수',
-    icon: XCircle,
-    color: 'text-red-600',
-    bg: 'bg-red-50',
-    border: 'border-red-100',
-    getValue: (s: DashboardStats) => s.payments,
-  },
-]
+const KPI_META = [
+  { key: 'orders', labelKey: 'kpi_orders', icon: ShoppingBag, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+  { key: 'members', labelKey: 'kpi_members', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+  { key: 'inventoryItems', labelKey: 'kpi_inventory', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' },
+  { key: 'payments', labelKey: 'kpi_payments', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' },
+] as const
 
 export default function DashboardPage() {
+  const { locale } = useAdminLocale()
   const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS)
   const [recentOrders, setRecentOrders] = useState<DashboardOrder[]>([])
   const [monthly, setMonthly] = useState<Record<string, unknown>[]>([])
@@ -99,7 +70,7 @@ export default function DashboardPage() {
           errors?: string[]
         }
         if (!response.ok) {
-          toast.error('대시보드 데이터를 불러오지 못했습니다.')
+          toast.error(getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'load_failed'))
           setStats(INITIAL_STATS)
           setMonthly([])
           setChannels([])
@@ -115,7 +86,7 @@ export default function DashboardPage() {
         setApiErrors(result.errors ?? [])
         setRecentOrders([])
       } catch (error) {
-        toast.error('대시보드 조회 중 오류가 발생했습니다.')
+        toast.error(getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'load_error'))
         setStats(INITIAL_STATS)
         setMonthly([])
         setChannels([])
@@ -135,14 +106,14 @@ export default function DashboardPage() {
     <div className="px-4 lg:px-8 py-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">대시보드</h1>
+        <h1 className="text-2xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'page_title')}</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
         </p>
       </div>
 
       {loading && (
-        <div className="mb-4 text-sm text-muted-foreground">대시보드 데이터를 불러오는 중...</div>
+        <div className="mb-4 text-sm text-muted-foreground">{getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'loading')}</div>
       )}
 
       {/* Failed Email Banner */}
@@ -150,14 +121,14 @@ export default function DashboardPage() {
         <div className="mb-5 flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-5 py-3.5">
           <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-600" />
           <p className="text-sm">
-            일부 지표를 불러오지 못했습니다. 가능한 데이터만 표시 중입니다.
+            {getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'partial_error')}
           </p>
         </div>
       )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {KPI_CARDS.map(({ key, label, icon: Icon, color, bg, border, getValue }) => (
+        {KPI_META.map(({ key, labelKey, icon: Icon, color, bg, border }) => (
           <div
             key={key}
             className={cn('bg-card border rounded-2xl shadow-sm p-5', border)}
@@ -167,8 +138,8 @@ export default function DashboardPage() {
                 <Icon className={cn('w-5 h-5', color)} />
               </div>
             </div>
-            <p className="text-3xl font-bold text-foreground">{getValue(stats)}</p>
-            <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
+            <p className="text-3xl font-bold text-foreground">{stats[key]}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, labelKey)}</p>
           </div>
         ))}
       </div>
@@ -180,7 +151,7 @@ export default function DashboardPage() {
             <TrendingUp className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">월간 요약/채널/상품 뷰 상태</p>
+            <p className="text-sm text-muted-foreground">{getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'monthly_summary')}</p>
             <p className="text-2xl font-bold text-foreground">
               {monthly.length} / {channels.length} / {products.length}
             </p>
@@ -191,12 +162,12 @@ export default function DashboardPage() {
       {/* Recent Orders */}
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="text-base font-semibold text-foreground">대시보드 데이터 미리보기</h2>
+          <h2 className="text-base font-semibold text-foreground">{getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'preview_title')}</h2>
           <Link
             href="/admin/orders"
             className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1"
           >
-            전체보기
+            {getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'view_all')}
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
@@ -206,7 +177,7 @@ export default function DashboardPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/20">
-                {['주문번호', '고객', '금액', '결제', '슬롯', '상태'].map((h) => (
+                {[getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'col_order_no'), getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'col_customer'), getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'col_amount'), getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'col_payment'), getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'col_slot'), getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'col_status')].map((h) => (
                   <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide first:pl-6">
                     {h}
                   </th>

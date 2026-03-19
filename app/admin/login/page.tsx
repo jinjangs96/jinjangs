@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,22 +11,32 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { useStaff } from '@/lib/staff-context'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_LOGIN_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
-const loginSchema = z.object({
-  email: z.string().email('이메일 형식을 확인해 주세요.'),
-  password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다.'),
-})
-
-type LoginForm = z.infer<typeof loginSchema>
+type LoginForm = {
+  email: string
+  password: string
+}
 
 type FormState = 'idle' | 'loading' | 'success' | 'error'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { locale } = useAdminLocale()
   const { login } = useStaff()
   const [state, setState] = useState<FormState>('idle')
   const [globalError, setGlobalError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+
+  const loginSchema = useMemo(
+    () =>
+      z.object({
+        email: z.string().email(getAdminLabel(locale, ADMIN_LOGIN_LABELS, 'email_error')),
+        password: z.string().min(8, getAdminLabel(locale, ADMIN_LOGIN_LABELS, 'password_error')),
+      }),
+    [locale]
+  )
 
   const {
     register,
@@ -43,7 +53,7 @@ export default function LoginPage() {
     const result = await login(data.email, data.password)
     if (!result.ok) {
       setState('error')
-      setGlobalError(result.error || '이메일 또는 비밀번호가 올바르지 않습니다.')
+      setGlobalError(result.error || getAdminLabel(locale, ADMIN_LOGIN_LABELS, 'login_failed'))
       return
     }
 
@@ -65,7 +75,7 @@ export default function LoginPage() {
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground">Jin Jang's Kitchen</h1>
-            <p className="text-sm text-muted-foreground mt-1">어드민 로그인</p>
+            <p className="text-sm text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_LOGIN_LABELS, 'page_title')}</p>
           </div>
         </div>
 
@@ -81,12 +91,12 @@ export default function LoginPage() {
             {/* Email */}
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-sm font-medium">
-                이메일 <span className="text-destructive">*</span>
+                {getAdminLabel(locale, ADMIN_LOGIN_LABELS, 'email_label')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@example.com"
+                placeholder={getAdminLabel(locale, ADMIN_LOGIN_LABELS, 'email_placeholder')}
                 autoComplete="email"
                 disabled={state === 'loading'}
                 className={cn(
@@ -103,13 +113,13 @@ export default function LoginPage() {
             {/* Password */}
             <div className="space-y-1.5">
               <Label htmlFor="password" className="text-sm font-medium">
-                비밀번호 <span className="text-destructive">*</span>
+                {getAdminLabel(locale, ADMIN_LOGIN_LABELS, 'password_label')} <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="8자 이상 입력"
+                  placeholder={getAdminLabel(locale, ADMIN_LOGIN_LABELS, 'password_placeholder')}
                   autoComplete="current-password"
                   disabled={state === 'loading'}
                   className={cn(
@@ -140,10 +150,10 @@ export default function LoginPage() {
               {state === 'loading' ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  로그인 중...
+                  {getAdminLabel(locale, ADMIN_LOGIN_LABELS, 'logging_in')}
                 </>
               ) : (
-                '로그인'
+                getAdminLabel(locale, ADMIN_LOGIN_LABELS, 'submit')
               )}
             </Button>
           </form>
