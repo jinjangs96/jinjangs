@@ -20,13 +20,24 @@ import type { InventoryMovement, InventoryMovementType } from '@/lib/types'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
-const TYPE_CONFIG: Record<InventoryMovementType, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
+type MovementTypeKey = InventoryMovementType | 'sale' | 'manual_adjustment' | 'cancel_restore' | 'spoilage' | 'restock' | string
+
+type TypeConfig = { label: string; icon: React.ComponentType<{ className?: string }>; color: string }
+
+const TYPE_CONFIG: Record<string, TypeConfig> = {
   in: { label: '입고', icon: ArrowUpCircle, color: 'text-green-600' },
   out: { label: '출고', icon: ArrowDownCircle, color: 'text-orange-600' },
   adjust: { label: '조정', icon: RefreshCw, color: 'text-blue-600' },
   waste: { label: '폐기', icon: Trash2, color: 'text-destructive' },
   order_deduct: { label: '주문 차감', icon: ShoppingBag, color: 'text-primary' },
+  sale: { label: '판매', icon: ShoppingBag, color: 'text-primary' },
+  manual_adjustment: { label: '수기 조정', icon: RefreshCw, color: 'text-blue-600' },
+  cancel_restore: { label: '취소 복구', icon: ArrowUpCircle, color: 'text-green-600' },
+  spoilage: { label: '폐기', icon: Trash2, color: 'text-destructive' },
+  restock: { label: '재입고', icon: ArrowUpCircle, color: 'text-green-600' },
 }
+
+const FALLBACK_TYPE: TypeConfig = TYPE_CONFIG.manual_adjustment
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('ko-KR', { 
@@ -39,10 +50,11 @@ function formatDate(iso: string) {
 }
 
 export default function InventoryMovementsPage() {
-  const [movements, setMovements] = useState<InventoryMovement[]>([])
+  type Movement = Omit<InventoryMovement, 'type'> & { type: MovementTypeKey }
+  const [movements, setMovements] = useState<Movement[]>([])
   const [itemsByProductId, setItemsByProductId] = useState<Record<string, string>>({})
   const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState<InventoryMovementType | 'all'>('all')
+  const [typeFilter, setTypeFilter] = useState<MovementTypeKey | 'all'>('all')
 
   useEffect(() => {
     async function loadData() {
@@ -67,17 +79,17 @@ export default function InventoryMovementsPage() {
         for (const item of result.items ?? []) map[item.product_id] = item.product_name
         setItemsByProductId(map)
 
-        const mappedMovements: InventoryMovement[] = (result.movements ?? []).map((row) => ({
+        const mappedMovements: Movement[] = (result.movements ?? []).map((row) => ({
           id: String(row.id),
           inventory_item_id: String(row.product_id),
           product_id: String(row.product_id),
-          type: String(row.movement_type) as InventoryMovementType,
+          type: String(row.movement_type ?? 'manual_adjustment'),
           qty_change: Number(row.quantity_delta ?? 0),
           qty_before: 0,
           qty_after: 0,
           reason: String(row.note ?? row.reference_type ?? '-'),
           order_id: row.reference_id ? String(row.reference_id) : undefined,
-          created_by: String(row.created_by ?? 'system'),
+          created_by: String((row as { handler_name?: unknown }).handler_name ?? row.created_by ?? 'system'),
           created_at: String(row.created_at ?? new Date().toISOString()),
         }))
         setMovements(mappedMovements)
@@ -184,6 +196,11 @@ export default function InventoryMovementsPage() {
             <SelectItem value="adjust">조정</SelectItem>
             <SelectItem value="waste">폐기</SelectItem>
             <SelectItem value="order_deduct">주문 차감</SelectItem>
+            <SelectItem value="sale">판매</SelectItem>
+            <SelectItem value="manual_adjustment">수기 조정</SelectItem>
+            <SelectItem value="cancel_restore">취소 복구</SelectItem>
+            <SelectItem value="spoilage">폐기(손실)</SelectItem>
+            <SelectItem value="restock">재입고</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -211,7 +228,7 @@ export default function InventoryMovementsPage() {
               </TableRow>
             ) : (
               filteredMovements.map((mov) => {
-                const config = TYPE_CONFIG[mov.type]
+                const config = TYPE_CONFIG[String(mov.type)] ?? FALLBACK_TYPE
                 const Icon = config.icon
                 return (
                   <TableRow key={mov.id}>

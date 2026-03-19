@@ -224,6 +224,7 @@ export interface Product {
   // Badges & status
   badges?: ProductBadge[]
   is_available: boolean
+  is_active?: boolean
   is_popular: boolean
   sort_order: number
   created_at: string
@@ -371,6 +372,7 @@ export interface CartItemOption {
   option_id: string
   option_name: string
   price_delta_vnd: number
+  quantity?: number
 }
 
 export interface CartItem {

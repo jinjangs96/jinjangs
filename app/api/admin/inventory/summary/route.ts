@@ -35,10 +35,26 @@ export async function GET(request: Request) {
       last_updated: String(item.updated_at ?? new Date().toISOString()),
     }))
 
+    const createdByIds = Array.from(
+      new Set((movements ?? []).map((m) => String((m as { created_by?: unknown }).created_by ?? '')).filter(Boolean))
+    )
+    const { data: profiles, error: profileError } = createdByIds.length
+      ? await admin.from('profiles').select('id,full_name,email').in('id', createdByIds)
+      : { data: [], error: null as null | { message: string } }
+    if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 })
+    const profileMap = new Map((profiles ?? []).map((p) => [String(p.id), p]))
+
+    const movementsWithHandler = (movements ?? []).map((m) => {
+      const id = String((m as { created_by?: unknown }).created_by ?? '')
+      const profile = profileMap.get(id)
+      const handler_name = profile?.full_name || profile?.email || null
+      return { ...m, handler_name }
+    })
+
     return NextResponse.json({
       success: true,
       items: mappedItems,
-      movements: movements ?? [],
+      movements: movementsWithHandler,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : '재고 조회 중 오류가 발생했습니다.'
