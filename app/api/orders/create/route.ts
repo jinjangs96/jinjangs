@@ -36,6 +36,62 @@ type CreateOrderBody = {
   address_label?: 'home' | 'office' | 'other'
 }
 
+type ProductOptionValueSnapshot = {
+  name_ko?: unknown
+  name?: unknown
+  is_available?: unknown
+  is_sold_out?: unknown
+  sold_out?: unknown
+}
+
+type ProductOptionGroupSnapshot = {
+  name_ko?: unknown
+  name?: unknown
+  option_values?: unknown
+}
+
+function text(value: unknown, fallback = '') {
+  return typeof value === 'string' ? value : fallback
+}
+
+function stripQtySuffix(input: string): string {
+  return input.replace(/\s+x\d+\s*$/i, '').trim()
+}
+
+function isSelectionAllowedFromOptionGroups(
+  optionGroupsRaw: unknown,
+  groupName: string,
+  optionName: string
+): boolean | null {
+  if (!Array.isArray(optionGroupsRaw)) return null
+
+  const groupNameNorm = groupName.trim()
+  const optionNameNorm = stripQtySuffix(optionName).trim()
+
+  for (const gRaw of optionGroupsRaw) {
+    if (!gRaw || typeof gRaw !== 'object') continue
+    const g = gRaw as ProductOptionGroupSnapshot
+    const gName = text(g.name_ko ?? g.name).trim()
+    if (!gName || gName !== groupNameNorm) continue
+
+    const valuesRaw = (g as { option_values?: unknown }).option_values
+    if (!Array.isArray(valuesRaw)) return null
+    for (const vRaw of valuesRaw) {
+      if (!vRaw || typeof vRaw !== 'object') continue
+      const v = vRaw as ProductOptionValueSnapshot
+      const vName = text(v.name_ko ?? v.name).trim()
+      if (!vName || vName !== optionNameNorm) continue
+      const isAvailable = v.is_available
+      const isSoldOut = v.is_sold_out ?? v.sold_out
+      const blocked = isAvailable === false || isSoldOut === true
+      return !blocked
+    }
+    return null
+  }
+
+  return null
+}
+
 async function getOptionalUserIdFromAuthHeader(authHeader: string | null) {
   if (!authHeader?.startsWith('Bearer ')) return null
   const token = authHeader.slice('Bearer '.length).trim()
@@ -45,6 +101,24 @@ async function getOptionalUserIdFromAuthHeader(authHeader: string | null) {
   const { data, error } = await anonClient.auth.getUser(token)
   if (error || !data.user) return null
   return data.user.id
+}
+
+/** JJK + YYMMDD(Asia/Ho_Chi_Minh) + '-' + 4자리 숫자. 예: JJK250319-4821 */
+function generateOrderNumber(): string {
+  const now = new Date()
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  const parts = formatter.formatToParts(now)
+  const y = parts.find((p) => p.type === 'year')?.value ?? '25'
+  const m = parts.find((p) => p.type === 'month')?.value ?? '01'
+  const d = parts.find((p) => p.type === 'day')?.value ?? '01'
+  const yymmdd = `${y}${m}${d}`
+  const four = Math.floor(1000 + Math.random() * 9000)
+  return `JJK${yymmdd}-${four}`
 }
 
 export async function POST(request: Request) {
@@ -73,36 +147,98 @@ export async function POST(request: Request) {
     const userId = await getOptionalUserIdFromAuthHeader(request.headers.get('authorization'))
     const admin = getSupabaseAdminClient()
 
+    // Final validation: block inactive products / sold-out options
+    const productIds = Array.from(
+      new Set((body.items ?? []).map((item) => String(item.product_id ?? '')).filter(Boolean))
+    )
+    if (productIds.length > 0) {
+      const { data: productRows, error: productErr } = await admin
+        .from('products')
+        .select('id,is_active,option_groups')
+        .in('id', productIds)
+      if (productErr) {
+        return NextResponse.json({ error: productErr.message }, { status: 400 })
+      }
+      const productById = new Map(
+        (productRows ?? []).map((row) => [String((row as { id?: unknown }).id ?? ''), row as Record<string, unknown>])
+      )
+
+      for (const item of body.items ?? []) {
+        const pid = String(item.product_id ?? '')
+        if (!pid) continue
+        const row = productById.get(pid)
+        if (!row) {
+          return NextResponse.json(
+            { error: '품절된 상품 또는 옵션이 포함되어 있습니다. 장바구니를 다시 확인해주세요.' },
+            { status: 400 }
+          )
+        }
+        if (row.is_active === false) {
+          return NextResponse.json(
+            { error: '품절된 상품 또는 옵션이 포함되어 있습니다. 장바구니를 다시 확인해주세요.' },
+            { status: 400 }
+          )
+        }
+
+        for (const opt of item.selected_options ?? []) {
+          const allowed = isSelectionAllowedFromOptionGroups(row.option_groups, opt.group_name, opt.option_name)
+          if (allowed === false || allowed === null) {
+            return NextResponse.json(
+              { error: '품절된 상품 또는 옵션이 포함되어 있습니다. 장바구니를 다시 확인해주세요.' },
+              { status: 400 }
+            )
+          }
+        }
+      }
+    }
+
     const paymentStatus = paymentMethod === 'cod' ? 'pending' : 'transfer_waiting'
 
-    const { data: orderRow, error: orderError } = await admin
-      .from('orders')
-      .insert({
-        user_id: userId,
-        source_channel: body.source_channel || 'website',
-        payment_method: paymentMethod,
-        order_status: 'new',
-        payment_status: paymentStatus,
-        customer_name: body.customer_name.trim(),
-        customer_phone: body.customer_phone.trim(),
-        recipient_name: body.recipient_name?.trim() || null,
-        recipient_phone: body.recipient_phone?.trim() || null,
-        district,
-        ward: body.ward?.trim() || null,
-        address_line1: body.address_line1.trim(),
-        address_line2: body.address_line2?.trim() || null,
-        delivery_note: deliveryNote || null,
-        subtotal_vnd: body.subtotal_vnd,
-        delivery_fee_vnd: 0,
-        discount_vnd: 0,
-        total_vnd: body.subtotal_vnd,
-        created_by: userId,
-      })
-      .select('id, order_number, tracking_code, order_status, payment_status, total_vnd')
-      .single()
+    const maxOrderNumberAttempts = 3
+    let orderRow: { id: string; order_number: string; tracking_code: string; order_status: string; payment_status: string; total_vnd: number } | null = null
+    let lastError: { message?: string; code?: string } | null = null
 
-    if (orderError || !orderRow) {
-      return NextResponse.json({ error: orderError?.message || '주문 생성에 실패했습니다.' }, { status: 400 })
+    for (let attempt = 0; attempt < maxOrderNumberAttempts; attempt++) {
+      const order_number = generateOrderNumber()
+      const { data: row, error: err } = await admin
+        .from('orders')
+        .insert({
+          user_id: userId,
+          source_channel: body.source_channel || 'website',
+          payment_method: paymentMethod,
+          order_status: 'new',
+          payment_status: paymentStatus,
+          customer_name: body.customer_name.trim(),
+          customer_phone: body.customer_phone.trim(),
+          recipient_name: body.recipient_name?.trim() || null,
+          recipient_phone: body.recipient_phone?.trim() || null,
+          district,
+          ward: body.ward?.trim() || null,
+          address_line1: body.address_line1.trim(),
+          address_line2: body.address_line2?.trim() || null,
+          delivery_note: deliveryNote || null,
+          subtotal_vnd: body.subtotal_vnd,
+          delivery_fee_vnd: 0,
+          discount_vnd: 0,
+          total_vnd: body.subtotal_vnd,
+          created_by: userId,
+          order_number,
+        })
+        .select('id, order_number, tracking_code, order_status, payment_status, total_vnd')
+        .single()
+
+      if (!err && row) {
+        orderRow = row
+        break
+      }
+      lastError = err
+      const code = (err as { code?: string })?.code ?? ''
+      const isUniqueViolation = code === '23505'
+      if (!isUniqueViolation || attempt === maxOrderNumberAttempts - 1) break
+    }
+
+    if (!orderRow) {
+      return NextResponse.json({ error: lastError?.message || '주문 생성에 실패했습니다.' }, { status: 400 })
     }
 
     const orderId = orderRow.id

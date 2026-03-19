@@ -78,7 +78,7 @@ export default function TrackOrderPage() {
               id="order_number"
               value={orderNumber}
               onChange={(event) => setOrderNumber(event.target.value)}
-              placeholder="예: JJK-20260311-0001"
+              placeholder="예: JJK250319-4821"
             />
           </div>
           <div>
@@ -112,11 +112,25 @@ export default function TrackOrderPage() {
             <div className="pt-2">
               <p className="font-medium mb-2">상품</p>
               <div className="space-y-1 text-muted-foreground">
-                {result.items.map((item) => (
-                  <p key={String(item.id)}>
-                    {String(item.product_name_snapshot ?? '상품')} x{String(item.quantity ?? 1)}
-                  </p>
-                ))}
+                {result.items.map((item) => {
+                  const options = Array.isArray((item as { options?: unknown }).options)
+                    ? ((item as { options?: unknown }).options as unknown[]).map((o) => String(o)).filter(Boolean)
+                    : []
+                  return (
+                    <div key={String(item.id)} className="space-y-1">
+                      <p>
+                        {String(item.product_name_snapshot ?? '상품')} x{String(item.quantity ?? 1)}
+                      </p>
+                      {options.length > 0 && (
+                        <div className="text-xs text-muted-foreground pl-2 space-y-0.5">
+                          {options.map((opt, idx) => (
+                            <p key={`${String(item.id)}-opt-${idx}`}>옵션: {opt}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </CardContent>
