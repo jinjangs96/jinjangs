@@ -60,10 +60,17 @@ export default function HomePage() {
 
   const [currentBanner, setCurrentBanner] = useState(0)
 
-  // Auto-advance banner
+  const pausedUntilRef = useRef(0)
+  const PAUSE_MS = 6000
+  const triggerManualPause = () => {
+    pausedUntilRef.current = Date.now() + PAUSE_MS
+  }
+
+  // Auto-advance banner (skips when paused after manual interaction)
   useEffect(() => {
     if (activeBanners.length <= 1) return
     const timer = setInterval(() => {
+      if (Date.now() < pausedUntilRef.current) return
       setCurrentBanner(prev => (prev + 1) % activeBanners.length)
     }, 5000)
     return () => clearInterval(timer)
@@ -72,6 +79,15 @@ export default function HomePage() {
   const goToBanner = (index: number) => setCurrentBanner(index)
   const prevBanner = () => setCurrentBanner(prev => (prev - 1 + activeBanners.length) % activeBanners.length)
   const nextBanner = () => setCurrentBanner(prev => (prev + 1) % activeBanners.length)
+
+  const handlePrevClick = () => {
+    triggerManualPause()
+    prevBanner()
+  }
+  const handleNextClick = () => {
+    triggerManualPause()
+    nextBanner()
+  }
 
   const touchStartX = useRef<number | null>(null)
   const SWIPE_THRESHOLD = 50
@@ -87,6 +103,7 @@ export default function HomePage() {
     const delta = endX - touchStartX.current
     touchStartX.current = null
     if (Math.abs(delta) < SWIPE_THRESHOLD) return
+    triggerManualPause()
     if (delta > 0) prevBanner()
     else nextBanner()
   }
@@ -99,7 +116,7 @@ export default function HomePage() {
           {/* Left nav - desktop only, outside banner */}
           {activeBanners.length > 1 && (
             <button
-              onClick={prevBanner}
+              onClick={handlePrevClick}
               className="hidden md:flex shrink-0 w-12 h-12 rounded-full bg-white/95 border border-border/60 shadow-md items-center justify-center text-stone-700 hover:bg-white hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all"
               aria-label="Previous banner"
             >
@@ -202,7 +219,7 @@ export default function HomePage() {
           {/* Right nav - desktop only, outside banner */}
           {activeBanners.length > 1 && (
             <button
-              onClick={nextBanner}
+              onClick={handleNextClick}
               className="hidden md:flex shrink-0 w-12 h-12 rounded-full bg-white/95 border border-border/60 shadow-md items-center justify-center text-stone-700 hover:bg-white hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all"
               aria-label="Next banner"
             >
