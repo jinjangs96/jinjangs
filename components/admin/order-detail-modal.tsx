@@ -21,18 +21,39 @@ import type { Order, OrderStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useAdminLocale } from '@/lib/admin-locale-context'
-import { ADMIN_COMMON_LABELS, ADMIN_ORDER_DETAIL_LABELS, ADMIN_ORDER_STATUS_LABELS, getAdminLabel } from '@/lib/admin-i18n'
+import type { AdminLocale } from '@/lib/admin-i18n'
+import { ADMIN_COMMON_LABELS, ADMIN_ORDER_DETAIL_LABELS, ADMIN_ORDER_STATUS_LABELS, ADMIN_ORDERS_LABELS, getAdminLabel } from '@/lib/admin-i18n'
+
+const DISTRICT_KO_TO_VI: Record<string, string> = {
+  '1군': 'Quận 1', '2군': 'Quận 2', '3군': 'Quận 3', '4군': 'Quận 4', '5군': 'Quận 5',
+  '6군': 'Quận 6', '7군': 'Quận 7', '8군': 'Quận 8', '9군': 'Quận 9', '10군': 'Quận 10',
+  '11군': 'Quận 11', '12군': 'Quận 12',
+  '빈탄군': 'Bình Thạnh', '푸뉴언군': 'Phú Nhuận', '고밥군': 'Gò Vấp',
+  '떤빈군': 'Tân Bình', '떤푸군': 'Tân Phú', '투득': 'Thủ Đức',
+}
+
+function formatDistrictLabel(locale: AdminLocale, district: string): string {
+  if (locale !== 'vi') return district
+  return DISTRICT_KO_TO_VI[district] ?? district
+}
+
+function formatSlotLabel(slotText: string, undecidedLabel: string): string {
+  if (slotText === '미정') return undecidedLabel
+  return slotText
+}
 
 function formatVND(amount: number) {
   return amount.toLocaleString('vi-VN') + '₫'
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('ko-KR', {
+function formatDate(iso: string, locale: AdminLocale) {
+  const localeTag = locale === 'vi' ? 'vi-VN' : 'ko-KR'
+  return new Date(iso).toLocaleString(localeTag, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
   })
 }
 
@@ -72,6 +93,7 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
     }),
     [locale]
   )
+  const undecidedLabel = getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'undecided')
 
   if (!order) return null
 
@@ -141,8 +163,8 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
 
             {/* Address */}
             <Section title={getAdminLabel(locale, ADMIN_ORDER_DETAIL_LABELS, 'delivery_address')}>
-              <InfoRow icon={<MapPin className="w-4 h-4 text-muted-foreground" />} value={`${order.address} (${order.district})`} />
-              <InfoRow icon={<Clock className="w-4 h-4 text-muted-foreground" />} value={order.slot_text} />
+              <InfoRow icon={<MapPin className="w-4 h-4 text-muted-foreground" />} value={`${order.address} (${formatDistrictLabel(locale, order.district)})`} />
+              <InfoRow icon={<Clock className="w-4 h-4 text-muted-foreground" />} value={formatSlotLabel(order.slot_text, undecidedLabel)} />
             </Section>
 
             {/* Special requests */}
@@ -192,7 +214,7 @@ export function OrderDetailModal({ order, open, onOpenChange, onStatusChange }: 
                     )} />
                     <StatusBadge status={h.status} className="text-xs" />
                     <span className="text-xs text-muted-foreground flex-1">{h.changed_by}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">{formatDate(h.changed_at)}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{formatDate(h.changed_at, locale)}</span>
                   </div>
                 ))}
               </div>

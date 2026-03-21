@@ -29,12 +29,26 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useStaff } from '@/lib/staff-context'
 import type { InventoryItem, InventoryMovementType } from '@/lib/types'
 import { toast } from 'sonner'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { getAdminLabel, ADMIN_INVENTORY_LABELS, ADMIN_COMMON_LABELS } from '@/lib/admin-i18n'
 
-function formatNumber(n: number) {
-  return new Intl.NumberFormat('ko-KR').format(n)
+function formatNumber(n: number, locale: 'ko' | 'vi') {
+  return new Intl.NumberFormat(locale === 'vi' ? 'vi-VN' : 'ko-KR').format(n)
+}
+
+function formatDate(iso: string, locale: 'ko' | 'vi') {
+  const localeTag = locale === 'vi' ? 'vi-VN' : 'ko-KR'
+  return new Date(iso).toLocaleString(localeTag, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  })
 }
 
 export default function InventoryPage() {
+  const { locale } = useAdminLocale()
   const { hasPermission } = useStaff()
   const canEdit = hasPermission('inventory.edit')
   
@@ -63,7 +77,7 @@ export default function InventoryPage() {
       movements?: Array<{ quantity_delta: number; movement_type: string; created_at: string }>
     }
     if (!response.ok) {
-      toast.error(result.error || '재고 조회 실패')
+      toast.error(result.error || getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'load_failed'))
       return
     }
     setItems(result.items ?? [])
@@ -109,16 +123,16 @@ export default function InventoryPage() {
       })
       const result = (await response.json()) as { error?: string }
       if (!response.ok) {
-        toast.error(result.error || '재고 조정 실패')
+        toast.error(result.error || getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'adjust_failed'))
         return
       }
 
-      toast.success(`${adjustDialog.item.product_name} 재고 조정 완료`)
+      toast.success(getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'adjust_success').replace('{name}', adjustDialog.item.product_name))
       setAdjustDialog({ open: false, item: null })
       setAdjustForm({ type: 'in', qty: 0, reason: '' })
       await loadInventory()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '재고 조정 중 오류')
+      toast.error(error instanceof Error ? error.message : getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'adjust_error'))
     } finally {
       setIsSaving(false)
     }
@@ -129,14 +143,14 @@ export default function InventoryPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">재고 현황</h1>
-          <p className="text-sm text-muted-foreground mt-1">상품별 재고 수량 및 부족 알림</p>
+          <h1 className="text-2xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'page_title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'page_subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Link href="/admin/inventory/movements">
             <Button variant="outline" size="sm">
               <ArrowRightLeft className="w-4 h-4 mr-2" />
-              입출고 내역
+              {getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'movements_link')}
             </Button>
           </Link>
         </div>
@@ -146,7 +160,7 @@ export default function InventoryPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">총 품목</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'total_items')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{items.length}</p>
@@ -154,16 +168,16 @@ export default function InventoryPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">총 재고</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'total_stock')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatNumber(totalItems)}</p>
+            <p className="text-2xl font-bold">{formatNumber(totalItems, locale)}</p>
           </CardContent>
         </Card>
         <Card className={lowStockCount > 0 ? 'border-destructive/50' : ''}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              부족 품목
+              {getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'low_stock_items')}
               {lowStockCount > 0 && <AlertTriangle className="w-4 h-4 text-destructive" />}
             </CardTitle>
           </CardHeader>
@@ -173,7 +187,7 @@ export default function InventoryPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">오늘 변동</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'today_changes')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">+{todayIn} / -{todayOut}</p>
@@ -186,7 +200,7 @@ export default function InventoryPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="상품명 검색..."
+            placeholder={getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -198,7 +212,7 @@ export default function InventoryPage() {
           onClick={() => setShowLowStock(!showLowStock)}
         >
           <Filter className="w-4 h-4 mr-2" />
-          부족 품목만
+          {getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'low_stock_only')}
           {lowStockCount > 0 && (
             <Badge variant="secondary" className="ml-2">{lowStockCount}</Badge>
           )}
@@ -210,19 +224,19 @@ export default function InventoryPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>상품명</TableHead>
-              <TableHead className="text-right">현재 수량</TableHead>
-              <TableHead className="text-right">기준치</TableHead>
-              <TableHead>상태</TableHead>
-              <TableHead className="text-right">최근 업데이트</TableHead>
-              {canEdit && <TableHead className="text-right">작업</TableHead>}
+              <TableHead>{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'col_product')}</TableHead>
+              <TableHead className="text-right">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'col_qty')}</TableHead>
+              <TableHead className="text-right">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'col_threshold')}</TableHead>
+              <TableHead>{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'col_status')}</TableHead>
+              <TableHead className="text-right">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'col_updated')}</TableHead>
+              {canEdit && <TableHead className="text-right">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'col_action')}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={canEdit ? 6 : 5} className="text-center py-12 text-muted-foreground">
-                  재고 데이터가 없습니다
+                  {getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'empty')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -243,31 +257,25 @@ export default function InventoryPage() {
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       <span className={isLow ? 'text-destructive font-semibold' : ''}>
-                        {formatNumber(item.current_qty)}
+                        {formatNumber(item.current_qty, locale)}
                       </span>
                       <span className="text-muted-foreground ml-1">{item.unit}</span>
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                      {formatNumber(item.low_stock_threshold)} {item.unit}
+                      {formatNumber(item.low_stock_threshold, locale)} {item.unit}
                     </TableCell>
                     <TableCell>
                       {isLow ? (
                         <Badge variant="destructive" className="text-xs">
                           <AlertTriangle className="w-3 h-3 mr-1" />
-                          부족
+                          {getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'status_low')}
                         </Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-xs">정상</Badge>
+                        <Badge variant="secondary" className="text-xs">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'status_ok')}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">
-                      {new Date(item.last_updated).toLocaleString('ko-KR', { 
-                        month: 'short', 
-                        day: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit',
-                        timeZone: 'Asia/Ho_Chi_Minh'
-                      })}
+                      {formatDate(item.last_updated, locale)}
                     </TableCell>
                     {canEdit && (
                       <TableCell className="text-right">
@@ -279,7 +287,7 @@ export default function InventoryPage() {
                             setAdjustForm({ type: 'in', qty: 0, reason: '' })
                           }}
                         >
-                          조정
+                          {getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'adjust')}
                         </Button>
                       </TableCell>
                     )}
@@ -295,51 +303,51 @@ export default function InventoryPage() {
       <Dialog open={adjustDialog.open} onOpenChange={(open) => setAdjustDialog({ open, item: open ? adjustDialog.item : null })}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>재고 조정 - {adjustDialog.item?.product_name}</DialogTitle>
+            <DialogTitle>{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'adjust_dialog_title')} - {adjustDialog.item?.product_name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">현재 수량:</span>
+              <span className="text-sm text-muted-foreground">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'current_qty')}:</span>
               <span className="font-semibold">{adjustDialog.item?.current_qty} {adjustDialog.item?.unit}</span>
             </div>
             <div>
-              <Label>조정 유형</Label>
+              <Label>{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'adjust_type')}</Label>
               <Select value={adjustForm.type} onValueChange={(v) => setAdjustForm(prev => ({ ...prev, type: v as InventoryMovementType }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="in">입고 (+)</SelectItem>
-                  <SelectItem value="out">출고 (-)</SelectItem>
-                  <SelectItem value="adjust">재고 조정</SelectItem>
-                  <SelectItem value="waste">폐기</SelectItem>
+                  <SelectItem value="in">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'type_in')}</SelectItem>
+                  <SelectItem value="out">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'type_out')}</SelectItem>
+                  <SelectItem value="adjust">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'type_adjust')}</SelectItem>
+                  <SelectItem value="waste">{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'type_waste')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>수량</Label>
+              <Label>{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'qty')}</Label>
               <Input
                 type="number"
                 min={1}
                 value={adjustForm.qty || ''}
                 onChange={(e) => setAdjustForm(prev => ({ ...prev, qty: parseInt(e.target.value) || 0 }))}
-                placeholder="조정 수량"
+                placeholder={getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'qty_placeholder')}
               />
             </div>
             <div>
-              <Label>사유</Label>
+              <Label>{getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'reason')}</Label>
               <Textarea
                 value={adjustForm.reason}
                 onChange={(e) => setAdjustForm(prev => ({ ...prev, reason: e.target.value }))}
-                placeholder="조정 사유를 입력하세요"
+                placeholder={getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'reason_placeholder')}
                 rows={2}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjustDialog({ open: false, item: null })}>취소</Button>
+            <Button variant="outline" onClick={() => setAdjustDialog({ open: false, item: null })}>{getAdminLabel(locale, ADMIN_COMMON_LABELS, 'cancel')}</Button>
             <Button onClick={handleAdjust} disabled={adjustForm.qty <= 0 || isSaving}>
-              {isSaving ? '저장 중...' : '저장'}
+              {isSaving ? getAdminLabel(locale, ADMIN_INVENTORY_LABELS, 'saving') : getAdminLabel(locale, ADMIN_COMMON_LABELS, 'save')}
             </Button>
           </DialogFooter>
         </DialogContent>

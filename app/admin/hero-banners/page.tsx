@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Plus, Edit, Trash2, GripVertical, Eye, EyeOff, ExternalLink } from 'lucide-react'
+import { Plus, Edit, Trash2, GripVertical, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -18,8 +18,11 @@ import { Input } from '@/components/ui/input'
 import { MOCK_HERO_BANNERS } from '@/lib/mock-data'
 import type { HeroBanner } from '@/lib/types'
 import { toast } from 'sonner'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_HERO_BANNERS_LABELS, ADMIN_COMMON_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 export default function AdminHeroBannersPage() {
+  const { locale } = useAdminLocale()
   const [banners, setBanners] = useState(MOCK_HERO_BANNERS)
   const [editingBanner, setEditingBanner] = useState<HeroBanner | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -30,7 +33,7 @@ export default function AdminHeroBannersPage() {
     setBanners(prev => prev.map(b =>
       b.id === bannerId ? { ...b, is_active: !b.is_active } : b
     ))
-    toast.success('상태가 변경되었습니다')
+    toast.success(getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'status_changed'))
   }
 
   const handleEdit = (banner: HeroBanner) => {
@@ -54,7 +57,7 @@ export default function AdminHeroBannersPage() {
   const handleSave = () => {
     if (!editingBanner) return
     if (!editingBanner.image_url) {
-      toast.error('이미지 URL을 입력하세요')
+      toast.error(getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'image_required'))
       return
     }
 
@@ -68,25 +71,25 @@ export default function AdminHeroBannersPage() {
     }
     setIsDialogOpen(false)
     setEditingBanner(null)
-    toast.success('배너가 저장되었습니다')
+    toast.success(getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'save_success'))
   }
 
   const handleDelete = (bannerId: string) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return
+    if (!confirm(getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'confirm_delete'))) return
     setBanners(prev => prev.filter(b => b.id !== bannerId))
-    toast.success('배너가 삭제되었습니다')
+    toast.success(getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'delete_success'))
   }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">배너 관리</h1>
-          <p className="text-sm text-muted-foreground">홈페이지 히어로 배너를 관리합니다</p>
+          <h1 className="text-2xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'page_title')}</h1>
+          <p className="text-sm text-muted-foreground">{getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'page_subtitle')}</p>
         </div>
         <Button onClick={handleNew}>
           <Plus className="w-4 h-4 mr-2" />
-          배너 추가
+          {getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'add_banner')}
         </Button>
       </div>
 
@@ -111,7 +114,7 @@ export default function AdminHeroBannersPage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
-                        이미지 없음
+                        {getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'no_image')}
                       </div>
                     )}
                     <div className="absolute top-2 left-2 bg-foreground/80 text-background text-xs px-2 py-0.5 rounded">
@@ -122,7 +125,7 @@ export default function AdminHeroBannersPage() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{banner.alt_text || '(설명 없음)'}</p>
+                  <p className="font-medium truncate">{banner.alt_text || getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'no_desc')}</p>
                   {banner.link_url && (
                     <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                       <ExternalLink className="w-3 h-3" />
@@ -137,7 +140,7 @@ export default function AdminHeroBannersPage() {
                         onCheckedChange={() => handleToggleActive(banner.id)}
                       />
                       <span className="text-sm text-muted-foreground">
-                        {banner.is_active ? '활성' : '비활성'}
+                        {banner.is_active ? getAdminLabel(locale, ADMIN_COMMON_LABELS, 'status_active') : getAdminLabel(locale, ADMIN_COMMON_LABELS, 'status_inactive')}
                       </span>
                     </div>
                   </div>
@@ -147,11 +150,11 @@ export default function AdminHeroBannersPage() {
                 <div className="flex items-center gap-2 sm:flex-col">
                   <Button variant="outline" size="sm" onClick={() => handleEdit(banner)}>
                     <Edit className="w-4 h-4 sm:mr-0 mr-2" />
-                    <span className="sm:hidden">수정</span>
+                    <span className="sm:hidden">{getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'edit')}</span>
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleDelete(banner.id)} className="text-destructive hover:text-destructive">
                     <Trash2 className="w-4 h-4 sm:mr-0 mr-2" />
-                    <span className="sm:hidden">삭제</span>
+                    <span className="sm:hidden">{getAdminLabel(locale, ADMIN_COMMON_LABELS, 'delete')}</span>
                   </Button>
                 </div>
               </div>
@@ -162,7 +165,7 @@ export default function AdminHeroBannersPage() {
         {banners.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center text-muted-foreground">
-              배너가 없습니다. 새 배너를 추가하세요.
+              {getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'empty')}
             </CardContent>
           </Card>
         )}
@@ -172,35 +175,35 @@ export default function AdminHeroBannersPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingBanner?.id.startsWith('banner-') && !banners.find(b => b.id === editingBanner?.id) ? '배너 추가' : '배너 수정'}</DialogTitle>
+            <DialogTitle>{editingBanner?.id.startsWith('banner-') && !banners.find(b => b.id === editingBanner?.id) ? getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'dialog_title_add') : getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'dialog_title_edit')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label>이미지 URL *</Label>
+              <Label>{getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'image_url')}</Label>
               <Input
                 value={editingBanner?.image_url || ''}
                 onChange={(e) => setEditingBanner(prev => prev ? { ...prev, image_url: e.target.value } : null)}
-                placeholder="https://example.com/banner.jpg"
+                placeholder={getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'image_url_placeholder')}
               />
             </div>
             <div>
-              <Label>링크 URL (선택)</Label>
+              <Label>{getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'link_url')}</Label>
               <Input
                 value={editingBanner?.link_url || ''}
                 onChange={(e) => setEditingBanner(prev => prev ? { ...prev, link_url: e.target.value } : null)}
-                placeholder="/shop 또는 https://..."
+                placeholder={getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'link_url_placeholder')}
               />
             </div>
             <div>
-              <Label>대체 텍스트 (Alt)</Label>
+              <Label>{getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'alt_text')}</Label>
               <Input
                 value={editingBanner?.alt_text || ''}
                 onChange={(e) => setEditingBanner(prev => prev ? { ...prev, alt_text: e.target.value } : null)}
-                placeholder="배너 설명..."
+                placeholder={getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'alt_placeholder')}
               />
             </div>
             <div>
-              <Label>순서</Label>
+              <Label>{getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'sort_order')}</Label>
               <Input
                 type="number"
                 min="1"
@@ -212,7 +215,7 @@ export default function AdminHeroBannersPage() {
             {/* Preview */}
             {editingBanner?.image_url && (
               <div>
-                <Label>미리보기</Label>
+                <Label>{getAdminLabel(locale, ADMIN_HERO_BANNERS_LABELS, 'preview')}</Label>
                 <div className="relative w-full aspect-[3/1] rounded-lg overflow-hidden bg-muted mt-2">
                   <Image
                     src={editingBanner.image_url}
@@ -225,8 +228,8 @@ export default function AdminHeroBannersPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>취소</Button>
-            <Button onClick={handleSave}>저장</Button>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>{getAdminLabel(locale, ADMIN_COMMON_LABELS, 'cancel')}</Button>
+            <Button onClick={handleSave}>{getAdminLabel(locale, ADMIN_COMMON_LABELS, 'save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

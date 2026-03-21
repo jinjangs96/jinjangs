@@ -1,14 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Edit, Trash2, Plus, ExternalLink } from 'lucide-react'
+import { Edit, Trash2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MOCK_FLOATING_ICONS } from '@/lib/mock-data'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_FLOATING_ICONS_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 export default function FloatingIconsPage() {
+  const { locale } = useAdminLocale()
   const [icons, setIcons] = useState(MOCK_FLOATING_ICONS)
 
   const handleToggle = (id: string) => {
@@ -18,13 +20,14 @@ export default function FloatingIconsPage() {
   }
 
   const getTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      'zalo': 'Zalo',
-      'phone': '전화',
-      'kakao': '카카오톡',
-      'custom': '커스텀',
+    const keyMap: Record<string, string> = {
+      'zalo': 'type_zalo',
+      'phone': 'type_phone',
+      'kakao': 'type_kakao',
+      'custom': 'type_custom',
     }
-    return labels[type] || type
+    const key = keyMap[type]
+    return key ? getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, key) : type
   }
 
   return (
@@ -32,12 +35,12 @@ export default function FloatingIconsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">플로팅 아이콘</h1>
-          <p className="text-muted-foreground mt-1">고객 접근용 플로팅 아이콘 관리</p>
+          <h1 className="text-3xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'page_title')}</h1>
+          <p className="text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'page_subtitle')}</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90">
           <Plus className="w-4 h-4 mr-2" />
-          추가
+          {getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'add_btn')}
         </Button>
       </div>
 
@@ -45,7 +48,7 @@ export default function FloatingIconsPage() {
       <Card className="border-primary/30 bg-secondary/10">
         <CardContent className="pt-6">
           <p className="text-sm text-foreground">
-            플로팅 아이콘은 웹사이트의 우측 하단 코너에 표시되며, 고객이 Zalo, 전화, 카카오톡 등으로 즉시 연락할 수 있게 합니다.
+            {getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'info_text')}
           </p>
         </CardContent>
       </Card>
@@ -53,7 +56,7 @@ export default function FloatingIconsPage() {
       {/* Icons List */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">활성 아이콘 ({icons.filter(i => i.is_active).length})</CardTitle>
+          <CardTitle className="text-lg">{getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'active_count_format').replace('{n}', String(icons.filter(i => i.is_active).length))}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -78,7 +81,7 @@ export default function FloatingIconsPage() {
                       className="text-xs"
                       onClick={() => handleToggle(icon.id)}
                     >
-                      {icon.is_active ? '비활성화' : '활성화'}
+                      {icon.is_active ? getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'deactivate') : getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'activate')}
                     </Button>
                     <Button variant="ghost" size="sm" className="text-xs">
                       <Edit className="w-4 h-4" />
@@ -97,24 +100,24 @@ export default function FloatingIconsPage() {
       {/* URL Examples */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">URL 형식 예시</CardTitle>
+          <CardTitle className="text-lg">{getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'url_examples_title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3 text-sm">
             <div>
-              <p className="text-muted-foreground mb-1">Zalo</p>
+              <p className="text-muted-foreground mb-1">{getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'url_zalo')}</p>
               <p className="font-mono bg-muted p-2 rounded text-xs">https://zalo.me/your_phone_number</p>
             </div>
             <div>
-              <p className="text-muted-foreground mb-1">전화</p>
+              <p className="text-muted-foreground mb-1">{getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'url_phone')}</p>
               <p className="font-mono bg-muted p-2 rounded text-xs">tel:+84901234567</p>
             </div>
             <div>
-              <p className="text-muted-foreground mb-1">카카오톡</p>
+              <p className="text-muted-foreground mb-1">{getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'url_kakao')}</p>
               <p className="font-mono bg-muted p-2 rounded text-xs">https://pf.kakao.com/your_channel</p>
             </div>
             <div>
-              <p className="text-muted-foreground mb-1">외부 링크</p>
+              <p className="text-muted-foreground mb-1">{getAdminLabel(locale, ADMIN_FLOATING_ICONS_LABELS, 'url_external')}</p>
               <p className="font-mono bg-muted p-2 rounded text-xs">https://example.com</p>
             </div>
           </div>

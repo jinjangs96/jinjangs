@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Search, Edit, Trash2, ChevronRight } from 'lucide-react'
+import { Search, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_MEMBERS_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 type Member = {
   id: string
@@ -31,6 +33,7 @@ function formatVND(amount: number) {
 }
 
 export default function MembersPage() {
+  const { locale } = useAdminLocale()
   const [members, setMembers] = useState<Member[]>([])
   const [summary, setSummary] = useState({
     totalMembers: 0,
@@ -71,7 +74,7 @@ export default function MembersPage() {
           members?: Member[]
         }
         if (!response.ok) {
-          toast.error('회원 요약 조회 실패')
+          toast.error(getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'load_failed'))
           setMembers([])
           setErrors([])
           return
@@ -90,7 +93,7 @@ export default function MembersPage() {
         })
         setErrors(result.errors ?? [])
       } catch (error) {
-        toast.error('회원 요약 조회 중 오류')
+        toast.error(getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'load_error'))
         setMembers([])
         setErrors([])
       }
@@ -111,8 +114,8 @@ export default function MembersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">회원 관리</h1>
-        <p className="text-muted-foreground mt-1">등록된 회원과 포인트 정보</p>
+        <h1 className="text-3xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'page_title')}</h1>
+        <p className="text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'page_subtitle')}</p>
       </div>
 
       {/* Stats */}
@@ -120,25 +123,25 @@ export default function MembersPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-foreground">{summary.totalMembers}</div>
-            <p className="text-xs text-muted-foreground mt-1">총 회원 수</p>
+            <p className="text-xs text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'total_members')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-wood">{summary.byRole.owner + summary.byRole.ops_manager}</div>
-            <p className="text-xs text-muted-foreground mt-1">관리 권한 인원</p>
+            <p className="text-xs text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'admin_count')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">{summary.byRole.finance}</div>
-            <p className="text-xs text-muted-foreground mt-1">Finance 역할 수</p>
+            <p className="text-xs text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'finance_count')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-ok">{summary.byRole.staff + summary.byRole.viewer}</div>
-            <p className="text-xs text-muted-foreground mt-1">Staff + Viewer 수</p>
+            <p className="text-xs text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'staff_viewer_count')}</p>
           </CardContent>
         </Card>
       </div>
@@ -146,7 +149,7 @@ export default function MembersPage() {
       {errors.length > 0 && (
         <Card>
           <CardContent className="pt-6 text-sm text-amber-700">
-            일부 멤버 요약 데이터를 읽지 못했습니다. 가능한 데이터만 표시합니다.
+            {getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'partial_error')}
           </CardContent>
         </Card>
       )}
@@ -154,13 +157,13 @@ export default function MembersPage() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">검색 및 필터</CardTitle>
+          <CardTitle className="text-lg">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'filter_title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="회원 이름 또는 전화번호로 검색"
+              placeholder={getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -169,11 +172,11 @@ export default function MembersPage() {
 
           <div className="flex flex-wrap gap-2">
             {[
-              { value: null, label: '전체' },
-              { value: 'vip', label: 'VIP' },
-              { value: 'gold', label: '골드' },
-              { value: 'silver', label: '실버' },
-              { value: 'bronze', label: '브론즈' },
+              { value: null, labelKey: 'tier_all' },
+              { value: 'vip', labelKey: 'tier_vip' },
+              { value: 'gold', labelKey: 'tier_gold' },
+              { value: 'silver', labelKey: 'tier_silver' },
+              { value: 'bronze', labelKey: 'tier_bronze' },
             ].map((tier) => (
               <Button
                 key={tier.value}
@@ -181,7 +184,7 @@ export default function MembersPage() {
                 size="sm"
                 onClick={() => setSelectedTier(tier.value as any)}
               >
-                {tier.label}
+                {getAdminLabel(locale, ADMIN_MEMBERS_LABELS, tier.labelKey)}
               </Button>
             ))}
           </div>
@@ -191,12 +194,12 @@ export default function MembersPage() {
       {/* Members List */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">회원 목록 ({filteredMembers.length}명)</CardTitle>
+          <CardTitle className="text-lg">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'list_title')} ({getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'list_count').replace('{n}', String(filteredMembers.length))})</CardTitle>
         </CardHeader>
         <CardContent>
           {filteredMembers.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              현재 API는 요약 데이터를 우선 제공합니다. 상세 회원 목록은 다음 단계에서 확장됩니다.
+              {getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'empty')}
             </p>
           ) : (
             <div className="space-y-3">
@@ -214,15 +217,15 @@ export default function MembersPage() {
                   </div>
                   <div className="flex gap-6 mt-2 text-xs">
                     <div>
-                      <p className="text-muted-foreground">주문 횟수</p>
-                      <p className="font-semibold text-foreground">{member.total_orders}회</p>
+                      <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'orders_count')}</p>
+                      <p className="font-semibold text-foreground">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'orders_times_format').replace('{n}', String(member.total_orders))}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">총 지출</p>
+                      <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'total_spent')}</p>
                       <p className="font-semibold text-foreground">{formatVND(member.total_spent_vnd)}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">포인트</p>
+                      <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_MEMBERS_LABELS, 'points')}</p>
                       <p className="font-semibold text-primary">{member.points_balance.toLocaleString()}</p>
                     </div>
                   </div>

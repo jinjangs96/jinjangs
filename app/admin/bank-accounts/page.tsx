@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import {
-  Plus, Edit2, ToggleLeft, ToggleRight, Upload,
-  ImageIcon, Loader2, CheckCircle2, XCircle, RefreshCw, GripVertical, Trash2
+  Plus, Edit2, Upload,
+  ImageIcon, Loader2, XCircle, RefreshCw, GripVertical
 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -13,33 +13,48 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
 import { MOCK_BANK_ACCOUNTS } from '@/lib/mock-data'
 import type { BankAccount } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_BANK_ACCOUNTS_LABELS, ADMIN_COMMON_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 type UploadState = 'idle' | 'requesting_signed_url' | 'uploading' | 'verifying' | 'done' | 'failed'
 
-const bankSchema = z.object({
-  bank_name: z.string().min(1, '은행명을 입력해 주세요.'),
-  account_name: z.string().min(1, '예금주명을 입력해 주세요.'),
-  account_number: z.string().min(6, '계좌번호는 6자리 이상이어야 합니다.'),
-  is_active: z.boolean(),
-})
-type BankForm = z.infer<typeof bankSchema>
-
-const UPLOAD_STATE_LABELS: Record<UploadState, string> = {
-  idle: '드래그하거나 클릭하여 업로드',
-  requesting_signed_url: 'URL 요청 중...',
-  uploading: '업로드 중...',
-  verifying: '검증 중...',
-  done: '업로드 완료',
-  failed: '업로드 실패',
+type BankForm = {
+  bank_name: string
+  account_name: string
+  account_number: string
+  is_active: boolean
 }
 
 export default function BankAccountsPage() {
+  const { locale } = useAdminLocale()
   const [accounts, setAccounts] = useState<BankAccount[]>(MOCK_BANK_ACCOUNTS)
+
+  const bankSchema = useMemo(
+    () =>
+      z.object({
+        bank_name: z.string().min(1, getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'bank_name_error')),
+        account_name: z.string().min(1, getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'account_name_error')),
+        account_number: z.string().min(6, getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'account_number_error')),
+        is_active: z.boolean(),
+      }),
+    [locale]
+  )
+
+  const UPLOAD_STATE_LABELS = useMemo(
+    (): Record<UploadState, string> => ({
+      idle: getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'upload_idle'),
+      requesting_signed_url: getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'upload_requesting'),
+      uploading: getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'upload_uploading'),
+      verifying: getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'upload_verifying'),
+      done: getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'upload_done'),
+      failed: getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'upload_failed'),
+    }),
+    [locale]
+  )
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null)
   const [uploadState, setUploadState] = useState<UploadState>('idle')
@@ -84,7 +99,7 @@ export default function BankAccountsPage() {
 
   const simulateUpload = async (file: File) => {
     if (!file.type.match(/^image\/(png|jpeg|jpg)$/)) {
-      toast.error('PNG/JPG 파일만 업로드해 주세요.')
+      toast.error(getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'file_type_error'))
       return
     }
 
@@ -107,11 +122,11 @@ export default function BankAccountsPage() {
     // Simulate 90% success
     if (Math.random() > 0.1) {
       setUploadState('done')
-      toast.success('업로드 완료')
+      toast.success(getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'upload_success'))
     } else {
       setUploadState('failed')
       setPreviewUrl(null)
-      toast.error('업로드에 실패했습니다. 다시 시도해 주세요.')
+      toast.error(getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'upload_failed_msg') + ' ' + getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'retry_hint'))
     }
   }
 
@@ -150,7 +165,7 @@ export default function BankAccountsPage() {
       setAccounts((prev) => [...prev, newAcc])
     }
 
-    toast.success('저장되었습니다.')
+    toast.success(getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'save_success'))
     setDialogOpen(false)
   }
 
@@ -158,7 +173,7 @@ export default function BankAccountsPage() {
     setAccounts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, is_active: !a.is_active } : a))
     )
-    toast.success('상태가 변경되었습니다.')
+    toast.success(getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'status_changed'))
   }
 
   const isUploading = ['requesting_signed_url', 'uploading', 'verifying'].includes(uploadState)
@@ -168,12 +183,12 @@ export default function BankAccountsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">계좌/QR 관리</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">결제용 은행 계좌와 QR 코드를 관리합니다.</p>
+          <h1 className="text-2xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'page_title')}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'page_subtitle')}</p>
         </div>
         <Button onClick={openCreate} className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
           <Plus className="w-4 h-4" />
-          계좌 추가
+          {getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'add_account')}
         </Button>
       </div>
 
@@ -204,7 +219,7 @@ export default function BankAccountsPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-sm text-foreground">{acc.bank_name}</span>
-                <Badge
+                <span
                   className={cn(
                     'text-xs px-2 py-0.5 rounded-lg',
                     acc.is_active
@@ -212,8 +227,8 @@ export default function BankAccountsPage() {
                       : 'bg-muted text-muted-foreground border border-border'
                   )}
                 >
-                  {acc.is_active ? '활성' : '비활성'}
-                </Badge>
+                  {acc.is_active ? getAdminLabel(locale, ADMIN_COMMON_LABELS, 'status_active') : getAdminLabel(locale, ADMIN_COMMON_LABELS, 'status_inactive')}
+                </span>
               </div>
               <p className="text-sm text-foreground mt-1">{acc.account_name}</p>
               <p className="text-sm font-mono text-muted-foreground">{acc.account_number}</p>
@@ -244,35 +259,35 @@ export default function BankAccountsPage() {
         <DialogContent className="max-w-md rounded-2xl p-0">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
             <DialogTitle className="text-lg font-bold">
-              {editingAccount ? '계좌 수정' : '계좌 추가'}
+              {editingAccount ? getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'edit_dialog_title') : getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'add_dialog_title')}
             </DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-5 space-y-4">
             {/* Bank Name */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">은행명 <span className="text-destructive">*</span></Label>
-              <Input className="rounded-xl" placeholder="예: Vietcombank" {...register('bank_name')} />
+              <Label className="text-sm font-medium">{getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'bank_name')} <span className="text-destructive">*</span></Label>
+              <Input className="rounded-xl" placeholder={getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'bank_name_placeholder')} {...register('bank_name')} />
               {errors.bank_name && <p className="text-xs text-destructive">{errors.bank_name.message}</p>}
             </div>
 
             {/* Account Name */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">예금주 <span className="text-destructive">*</span></Label>
-              <Input className="rounded-xl" placeholder="예금주명" {...register('account_name')} />
+              <Label className="text-sm font-medium">{getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'account_name')} <span className="text-destructive">*</span></Label>
+              <Input className="rounded-xl" placeholder={getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'account_name_placeholder')} {...register('account_name')} />
               {errors.account_name && <p className="text-xs text-destructive">{errors.account_name.message}</p>}
             </div>
 
             {/* Account Number */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">계좌번호 <span className="text-destructive">*</span></Label>
-              <Input className="rounded-xl font-mono" placeholder="계좌번호 (6자 이상)" {...register('account_number')} />
+              <Label className="text-sm font-medium">{getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'account_number')} <span className="text-destructive">*</span></Label>
+              <Input className="rounded-xl font-mono" placeholder={getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'account_number_placeholder')} {...register('account_number')} />
               {errors.account_number && <p className="text-xs text-destructive">{errors.account_number.message}</p>}
             </div>
 
             {/* Active Toggle */}
             <div className="flex items-center justify-between py-1">
-              <Label className="text-sm font-medium">활성화</Label>
+              <Label className="text-sm font-medium">{getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'is_active')}</Label>
               <Switch
                 checked={isActive}
                 onCheckedChange={(v) => setValue('is_active', v)}
@@ -283,7 +298,7 @@ export default function BankAccountsPage() {
             {/* QR Upload */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">
-                QR 코드 이미지
+                {getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'qr_image')}
                 {isActive && <span className="text-destructive ml-1">*</span>}
               </Label>
 
@@ -292,7 +307,7 @@ export default function BankAccountsPage() {
                 <div className="relative">
                   <img
                     src={previewUrl}
-                    alt="QR 미리보기"
+                    alt={getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'qr_preview_alt')}
                     className="w-32 h-32 rounded-xl object-cover border border-border"
                   />
                   <div className="absolute inset-0 flex items-end justify-end p-2">
@@ -304,7 +319,7 @@ export default function BankAccountsPage() {
                       onClick={() => { setUploadState('idle'); setPreviewUrl(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
                     >
                       <RefreshCw className="w-3 h-3" />
-                      교체 업로드
+                      {getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'replace_upload')}
                     </Button>
                   </div>
                 </div>
@@ -335,14 +350,14 @@ export default function BankAccountsPage() {
                   ) : uploadState === 'failed' ? (
                     <div className="flex flex-col items-center gap-2">
                       <XCircle className="w-7 h-7 text-destructive" />
-                      <p className="text-sm text-destructive font-medium">업로드에 실패했습니다.</p>
-                      <p className="text-xs text-muted-foreground">다시 시도해 주세요.</p>
+                      <p className="text-sm text-destructive font-medium">{getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'upload_failed_msg')}</p>
+                      <p className="text-xs text-muted-foreground">{getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'retry_hint')}</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2">
                       <Upload className="w-7 h-7 text-muted-foreground" />
                       <p className="text-sm text-muted-foreground">{UPLOAD_STATE_LABELS[uploadState]}</p>
-                      <p className="text-xs text-muted-foreground">PNG / JPG</p>
+                      <p className="text-xs text-muted-foreground">{getAdminLabel(locale, ADMIN_BANK_ACCOUNTS_LABELS, 'file_types')}</p>
                     </div>
                   )}
                 </div>
@@ -357,14 +372,14 @@ export default function BankAccountsPage() {
                 className="flex-1 rounded-xl"
                 onClick={() => setDialogOpen(false)}
               >
-                닫기
+                {getAdminLabel(locale, ADMIN_COMMON_LABELS, 'close')}
               </Button>
               <Button
                 type="submit"
                 className="flex-1 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
                 disabled={isUploading}
               >
-                저장
+                {getAdminLabel(locale, ADMIN_COMMON_LABELS, 'save')}
               </Button>
             </div>
           </form>

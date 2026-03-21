@@ -21,46 +21,45 @@ import type { Order, OrderStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
-
-const TABS: { value: OrderStatus | 'all'; label: string }[] = [
-  { value: 'all', label: '전체' },
-  { value: 'new', label: '신규' },
-  { value: 'accepted', label: '수락' },
-  { value: 'preparing', label: '준비중' },
-  { value: 'out_for_delivery', label: '배달중' },
-  { value: 'completed', label: '완료' },
-  { value: 'canceled', label: '취소' },
-]
-
-const NEXT_STATUS: Partial<Record<OrderStatus, { status: OrderStatus; label: string }>> = {
-  new: { status: 'accepted', label: '수락' },
-  accepted: { status: 'preparing', label: '준비중' },
-  preparing: { status: 'out_for_delivery', label: '배달중' },
-  out_for_delivery: { status: 'completed', label: '완료' },
-}
-
-const PAYMENT_LABELS: Record<string, string> = {
-  bank_transfer: '계좌이체',
-  qr_transfer: 'QR 송금',
-  bank: '계좌이체',
-  cod: '착불',
-  megapay: 'MegaPay',
-}
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import type { AdminLocale } from '@/lib/admin-i18n'
+import { ADMIN_COMMON_LABELS, ADMIN_ORDER_STATUS_LABELS, ADMIN_ORDERS_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 function formatVND(n: number) {
   return n.toLocaleString('vi-VN') + '₫'
 }
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('ko-KR', { 
-    month: 'short', 
-    day: 'numeric', 
-    hour: '2-digit', 
+
+const DISTRICT_KO_TO_VI: Record<string, string> = {
+  '1군': 'Quận 1', '2군': 'Quận 2', '3군': 'Quận 3', '4군': 'Quận 4', '5군': 'Quận 5',
+  '6군': 'Quận 6', '7군': 'Quận 7', '8군': 'Quận 8', '9군': 'Quận 9', '10군': 'Quận 10',
+  '11군': 'Quận 11', '12군': 'Quận 12',
+  '빈탄군': 'Bình Thạnh', '푸뉴언군': 'Phú Nhuận', '고밥군': 'Gò Vấp',
+  '떤빈군': 'Tân Bình', '떤푸군': 'Tân Phú', '투득': 'Thủ Đức',
+}
+
+function formatDistrictLabel(locale: AdminLocale, district: string): string {
+  if (locale !== 'vi') return district
+  return DISTRICT_KO_TO_VI[district] ?? district
+}
+
+function formatSlotLabel(slotText: string, undecidedLabel: string): string {
+  if (slotText === '미정') return undecidedLabel
+  return slotText
+}
+
+function formatDate(iso: string, locale: AdminLocale) {
+  const localeTag = locale === 'vi' ? 'vi-VN' : 'ko-KR'
+  return new Date(iso).toLocaleString(localeTag, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'Asia/Ho_Chi_Minh'
+    timeZone: 'Asia/Ho_Chi_Minh',
   })
 }
 
 export default function OrdersPage() {
+  const { locale } = useAdminLocale()
   const [orders, setOrders] = useState<Order[]>([])
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('all')
   const [search, setSearch] = useState('')
@@ -68,6 +67,42 @@ export default function OrdersPage() {
   const [dateFilter, setDateFilter] = useState<string>('all')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+
+  const tabs = useMemo(
+    () => [
+      { value: 'all' as const, label: getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'all') },
+      { value: 'new' as const, label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'new') },
+      { value: 'accepted' as const, label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'accepted') },
+      { value: 'preparing' as const, label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'preparing') },
+      { value: 'out_for_delivery' as const, label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'out_for_delivery') },
+      { value: 'completed' as const, label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'completed') },
+      { value: 'canceled' as const, label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'canceled') },
+    ],
+    [locale]
+  )
+  const nextStatusMap = useMemo<Partial<Record<OrderStatus, { status: OrderStatus; label: string }>>>(
+    () => ({
+      new: { status: 'accepted', label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'accepted') },
+      accepted: { status: 'preparing', label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'preparing') },
+      preparing: { status: 'out_for_delivery', label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'out_for_delivery') },
+      out_for_delivery: { status: 'completed', label: getAdminLabel(locale, ADMIN_ORDER_STATUS_LABELS, 'completed') },
+    }),
+    [locale]
+  )
+  const paymentLabels = useMemo(
+    () => ({
+      bank_transfer: getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'bank_transfer'),
+      qr_transfer: getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'bank_transfer'),
+      bank: getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'bank_transfer'),
+      cod: getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'cod'),
+      megapay: getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'megapay'),
+    }),
+    [locale]
+  )
+  const undecidedLabel = useMemo(
+    () => getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'undecided'),
+    [locale]
+  )
 
   const mapOrderRowToOrder = (row: Record<string, unknown>): Order => {
     const statusRaw = String(row.order_status ?? 'new')
@@ -110,7 +145,7 @@ export default function OrdersPage() {
     })
     const result = (await response.json()) as { error?: string; orders?: Record<string, unknown>[] }
     if (!response.ok) {
-      toast.error(result.error || '주문 목록을 불러오지 못했습니다.')
+      toast.error(result.error || getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'load_failed'))
       return
     }
 
@@ -133,7 +168,7 @@ export default function OrdersPage() {
       statusHistory?: Record<string, unknown>[]
     }
     if (!response.ok || !result.order) {
-      toast.error(result.error || '주문 상세를 불러오지 못했습니다.')
+      toast.error(result.error || getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'detail_load_failed'))
       return
     }
 
@@ -141,14 +176,22 @@ export default function OrdersPage() {
     const selectionMap = new Map<string, string[]>()
     for (const selection of result.optionSelections ?? []) {
       const itemId = String(selection.order_item_id)
+      const group = String(selection.option_group_name_snapshot ?? '')
       const current = selectionMap.get(itemId) ?? []
-      current.push(String(selection.option_value_name_snapshot ?? ''))
+      const snap = String(selection.option_value_name_snapshot ?? '')
+      const qtyRaw = selection.quantity
+      const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
+      const qtySafe = Number.isFinite(qty) ? Math.max(1, Math.floor(qty)) : null
+      const base = snap.replace(/\s+x\d+\s*$/i, '').trim()
+      const value = qtySafe && qtySafe > 1 ? `${base} x${qtySafe}` : snap
+      const label = group ? `${group}: ${value}` : value
+      current.push(label)
       selectionMap.set(itemId, current)
     }
 
     order.items = (result.items ?? []).map((item) => ({
       id: String(item.id),
-      name: String(item.product_name_snapshot ?? '상품'),
+      name: String(item.product_name_snapshot ?? getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'product_name_fallback')),
       qty: Number(item.quantity ?? 0),
       price_vnd: Number(item.unit_price_vnd ?? 0),
       options: (selectionMap.get(String(item.id)) ?? []).join(', ') || undefined,
@@ -199,7 +242,7 @@ export default function OrdersPage() {
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus, cancelReason?: string) => {
     if (newStatus === 'canceled' && !cancelReason?.trim()) {
-      toast.error('취소 사유를 입력해주세요.')
+      toast.error(getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'cancel_reason_required'))
       return
     }
 
@@ -220,9 +263,10 @@ export default function OrdersPage() {
     })
     const result = (await response.json()) as { error?: string; detail?: string }
     if (!response.ok) {
-      const message = result.detail ? `${result.error || '상태 변경 실패'}\n${result.detail}` : (result.error || '상태 변경 실패')
+      const fallback = getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'status_change_failed')
+      const message = result.detail ? `${result.error || fallback}\n${result.detail}` : (result.error || fallback)
       toast.error(message)
-      throw new Error(result.error || '상태 변경 실패')
+      throw new Error(result.error || fallback)
     }
     setOrders((prev) =>
       prev.map((o) => {
@@ -261,17 +305,17 @@ export default function OrdersPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">주문 관리</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">총 {orders.length}건의 주문</p>
+          <h1 className="text-2xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'page_title')}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'page_subtitle').replace('{count}', String(orders.length))}</p>
         </div>
         <Button
           variant="outline"
           size="sm"
           className="rounded-xl gap-2"
-          onClick={() => { loadOrders().then(() => toast.success('새로고침되었습니다.')) }}
+          onClick={() => { loadOrders().then(() => toast.success(getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'refreshed'))) }}
         >
           <RefreshCw className="w-4 h-4" />
-          새로고침
+          {getAdminLabel(locale, ADMIN_COMMON_LABELS, 'refresh')}
         </Button>
       </div>
 
@@ -279,7 +323,7 @@ export default function OrdersPage() {
       <div className="mb-4 overflow-x-auto pb-1">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as OrderStatus | 'all')}>
           <TabsList className="bg-muted/50 rounded-xl h-auto p-1 gap-0.5 flex flex-nowrap w-max">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
@@ -303,7 +347,7 @@ export default function OrdersPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             className="pl-9 rounded-xl"
-            placeholder="주문번호 / 이름 / 전화번호 검색"
+            placeholder={getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -316,24 +360,24 @@ export default function OrdersPage() {
         <Select value={paymentFilter} onValueChange={setPaymentFilter}>
           <SelectTrigger className="rounded-xl w-36">
             <Filter className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
-            <SelectValue placeholder="결제수단" />
+            <SelectValue placeholder={getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'payment_filter')} />
           </SelectTrigger>
           <SelectContent className="rounded-xl">
-            <SelectItem value="all">전체 결제</SelectItem>
-            <SelectItem value="bank">계좌이체</SelectItem>
-            <SelectItem value="cod">착불(COD)</SelectItem>
-            <SelectItem value="megapay" disabled>MegaPay 결제(예정)</SelectItem>
+            <SelectItem value="all">{getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'all_payment')}</SelectItem>
+            <SelectItem value="bank">{getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'bank_transfer')}</SelectItem>
+            <SelectItem value="cod">{getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'cod')}</SelectItem>
+            <SelectItem value="megapay" disabled>{getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'megapay')}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={dateFilter} onValueChange={setDateFilter}>
           <SelectTrigger className="rounded-xl w-36">
             <Calendar className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
-            <SelectValue placeholder="날짜" />
+            <SelectValue placeholder={getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'date_filter')} />
           </SelectTrigger>
           <SelectContent className="rounded-xl">
-            <SelectItem value="all">전체 기간</SelectItem>
-            <SelectItem value="today">오늘</SelectItem>
-            <SelectItem value="last_7">최근 7일</SelectItem>
+            <SelectItem value="all">{getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'all_period')}</SelectItem>
+            <SelectItem value="today">{getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'today')}</SelectItem>
+            <SelectItem value="last_7">{getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'last_7_days')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -343,23 +387,33 @@ export default function OrdersPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/30">
-              {['주문번호', '일시', '고객', '금액', '결제', '지역', '슬롯', '상태', '액션'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide first:pl-6 last:pr-6">
-                  {h}
-                </th>
-              ))}
+            {[
+              getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'col_order_no'),
+              getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'col_date'),
+              getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'col_customer'),
+              getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'col_amount'),
+              getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'col_payment'),
+              getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'col_region'),
+              getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'col_slot'),
+              getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'col_status'),
+              getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'col_action'),
+            ].map((h, i) => (
+              <th key={i} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide first:pl-6 last:pr-6">
+                {h}
+              </th>
+            ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-6 py-16 text-center text-muted-foreground text-sm">
-                  주문이 없습니다.
+                  {getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'empty')}
                 </td>
               </tr>
             )}
             {filtered.map((order) => {
-              const next = NEXT_STATUS[order.status]
+              const next = nextStatusMap[order.status]
               const canCancel = !['completed', 'canceled'].includes(order.status)
               return (
                 <tr
@@ -368,15 +422,15 @@ export default function OrdersPage() {
                   onClick={() => openDetail(order)}
                 >
                   <td className="px-6 py-3.5 text-sm font-mono font-medium text-foreground">{order.short_id}</td>
-                  <td className="px-4 py-3.5 text-sm text-muted-foreground whitespace-nowrap">{formatDate(order.created_at)}</td>
+                  <td className="px-4 py-3.5 text-sm text-muted-foreground whitespace-nowrap">{formatDate(order.created_at, locale)}</td>
                   <td className="px-4 py-3.5">
                     <p className="text-sm font-medium text-foreground">{order.customer_name}</p>
                     <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
                   </td>
                   <td className="px-4 py-3.5 text-sm font-semibold text-foreground whitespace-nowrap">{formatVND(order.total_vnd)}</td>
-                  <td className="px-4 py-3.5 text-sm text-muted-foreground">{PAYMENT_LABELS[order.payment_method]}</td>
-                  <td className="px-4 py-3.5 text-sm text-muted-foreground">{order.district}</td>
-                  <td className="px-4 py-3.5 text-xs text-muted-foreground max-w-24 truncate">{order.slot_text}</td>
+                  <td className="px-4 py-3.5 text-sm text-muted-foreground">{paymentLabels[order.payment_method]}</td>
+                  <td className="px-4 py-3.5 text-sm text-muted-foreground">{formatDistrictLabel(locale, order.district)}</td>
+                  <td className="px-4 py-3.5 text-xs text-muted-foreground max-w-24 truncate">{formatSlotLabel(order.slot_text, undecidedLabel)}</td>
                   <td className="px-4 py-3.5">
                     <StatusBadge status={order.status} />
                   </td>
@@ -400,7 +454,7 @@ export default function OrdersPage() {
                               openDetail(order)
                             } else {
                               handleStatusChange(order.id, next.status).then(() =>
-                                toast.success('상태가 변경되었습니다.')
+                                toast.success(getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'status_changed'))
                               )
                             }
                           }}
@@ -415,7 +469,7 @@ export default function OrdersPage() {
                           className="h-7 px-2 rounded-lg text-xs border-destructive/50 text-destructive hover:bg-destructive/5"
                           onClick={() => openDetail(order)}
                         >
-                          취소
+                          {getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'cancel')}
                         </Button>
                       )}
                     </div>
@@ -430,7 +484,7 @@ export default function OrdersPage() {
       {/* Mobile Card List */}
       <div className="md:hidden space-y-3">
         {filtered.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground text-sm">주문이 없습니다.</div>
+          <div className="text-center py-16 text-muted-foreground text-sm">{getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'empty')}</div>
         )}
         {filtered.map((order) => (
           <div
@@ -441,22 +495,22 @@ export default function OrdersPage() {
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
                 <p className="font-mono font-semibold text-sm text-foreground">{order.short_id}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{formatDate(order.created_at)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{formatDate(order.created_at, locale)}</p>
               </div>
               <StatusBadge status={order.status} />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-foreground">{order.customer_name}</p>
-                <p className="text-xs text-muted-foreground">{order.district} · {order.slot_text}</p>
+                <p className="text-xs text-muted-foreground">{formatDistrictLabel(locale, order.district)} · {formatSlotLabel(order.slot_text, undecidedLabel)}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold text-foreground">{formatVND(order.total_vnd)}</p>
-                <p className="text-xs text-muted-foreground">{PAYMENT_LABELS[order.payment_method]}</p>
+                <p className="text-xs text-muted-foreground">{paymentLabels[order.payment_method]}</p>
               </div>
             </div>
             <div className="mt-3 flex items-center justify-end gap-1 text-primary text-xs font-medium">
-              상세보기 <ChevronRight className="w-3.5 h-3.5" />
+              {getAdminLabel(locale, ADMIN_ORDERS_LABELS, 'view_detail')} <ChevronRight className="w-3.5 h-3.5" />
             </div>
           </div>
         ))}

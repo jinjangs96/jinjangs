@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import { Edit, Trash2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MOCK_POLICY_PAGES } from '@/lib/mock-data'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_POLICIES_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 export default function PoliciesPage() {
+  const { locale } = useAdminLocale()
   const [policies, setPolicies] = useState(MOCK_POLICY_PAGES)
   const [selectedPolicy, setSelectedPolicy] = useState<string | null>(null)
 
@@ -25,12 +27,12 @@ export default function PoliciesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">약관 및 정책</h1>
-          <p className="text-muted-foreground mt-1">사이트 약관, 개인정보처리방침 등 관리</p>
+          <h1 className="text-3xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'page_title')}</h1>
+          <p className="text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'page_subtitle')}</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90">
           <Plus className="w-4 h-4 mr-2" />
-          새 페이지 추가
+          {getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'add_btn')}
         </Button>
       </div>
 
@@ -38,7 +40,7 @@ export default function PoliciesPage() {
         {/* Policy List */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-lg">페이지 목록</CardTitle>
+            <CardTitle className="text-lg">{getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'list_title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -93,14 +95,14 @@ export default function PoliciesPage() {
                 </div>
                 <div className="mt-6 pt-6 border-t border-border">
                   <p className="text-xs text-muted-foreground">
-                    마지막 수정: {new Date(selectedPolicyData.updated_at).toLocaleString('ko-KR')}
+                    {getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'last_modified')}: {new Date(selectedPolicyData.updated_at).toLocaleString(locale === 'vi' ? 'vi-VN' : 'ko-KR')}
                   </p>
                 </div>
               </CardContent>
             </>
           ) : (
             <CardContent className="pt-12 text-center">
-              <p className="text-muted-foreground">페이지를 선택해주세요</p>
+              <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'select_prompt')}</p>
             </CardContent>
           )}
         </Card>
@@ -109,12 +111,12 @@ export default function PoliciesPage() {
       {/* Help Info */}
       <Card className="border-primary/30 bg-secondary/10">
         <CardContent className="pt-6">
-          <h3 className="font-semibold text-foreground mb-2">팁</h3>
+          <h3 className="font-semibold text-foreground mb-2">{getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'tips_title')}</h3>
           <ul className="text-sm text-foreground space-y-1 list-disc list-inside">
-            <li>각 페이지는 고유한 URL 슬러그로 접근 가능합니다</li>
-            <li>HTML 형식의 내용을 지원합니다</li>
-            <li>수정된 시간이 자동으로 기록됩니다</li>
-            <li>공개 설정을 변경하면 고객에게 표시/비표시 됩니다</li>
+            <li>{getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'tip_1')}</li>
+            <li>{getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'tip_2')}</li>
+            <li>{getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'tip_3')}</li>
+            <li>{getAdminLabel(locale, ADMIN_POLICIES_LABELS, 'tip_4')}</li>
           </ul>
         </CardContent>
       </Card>

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_PAYMENT_RECON_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 type PaymentRow = Record<string, unknown>
 
@@ -14,6 +16,7 @@ function formatVND(amount: number) {
 }
 
 export default function AdminPaymentReconciliationPage() {
+  const { locale } = useAdminLocale()
   const [rows, setRows] = useState<PaymentRow[]>([])
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
@@ -27,12 +30,12 @@ export default function AdminPaymentReconciliationPage() {
       })
       const result = (await response.json()) as { error?: string; payments?: PaymentRow[] }
       if (!response.ok) {
-        toast.error(result.error || '결제 내역을 불러오지 못했습니다.')
+        toast.error(result.error || getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'load_failed'))
         return
       }
       setRows(result.payments ?? [])
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '결제 내역 조회 중 오류가 발생했습니다.')
+      toast.error(error instanceof Error ? error.message : getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'load_error'))
     }
   }, [])
 
@@ -56,13 +59,13 @@ export default function AdminPaymentReconciliationPage() {
       })
       const result = (await response.json()) as { error?: string }
       if (!response.ok) {
-        toast.error(result.error || '상태 변경에 실패했습니다.')
+        toast.error(result.error || getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'update_failed'))
         return
       }
-      toast.success('결제 상태가 변경되었습니다.')
+      toast.success(getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'update_success'))
       await loadRows()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '상태 변경 중 오류가 발생했습니다.')
+      toast.error(error instanceof Error ? error.message : getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'update_failed'))
     } finally {
       setUpdatingId(null)
     }
@@ -72,11 +75,11 @@ export default function AdminPaymentReconciliationPage() {
     <div className="p-4 sm:p-6 lg:p-8">
       <Card>
         <CardHeader>
-          <CardTitle>결제 확인</CardTitle>
+          <CardTitle>{getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'page_title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           {rows.length === 0 ? (
-            <p className="text-muted-foreground">결제 내역이 없습니다.</p>
+            <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'empty')}</p>
           ) : (
             rows.map((row) => {
               const id = String(row.id)
@@ -85,10 +88,10 @@ export default function AdminPaymentReconciliationPage() {
               const isUpdating = updatingId === id
               return (
                 <div key={id} className="rounded-md border p-3">
-                  <p>주문: {String((row.orders as Record<string, unknown> | null)?.order_number ?? '-')}</p>
-                  <p>결제수단: {String(row.method ?? '-')}</p>
-                  <p>상태: {status}</p>
-                  <p>금액: {formatVND(Number(row.expected_amount_vnd ?? 0))}</p>
+                  <p>{getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'order')}: {String((row.orders as Record<string, unknown> | null)?.order_number ?? '-')}</p>
+                  <p>{getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'method')}: {String(row.method ?? '-')}</p>
+                  <p>{getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'status')}: {status}</p>
+                  <p>{getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'amount')}: {formatVND(Number(row.expected_amount_vnd ?? 0))}</p>
                   {canConfirm && (
                     <div className="mt-2 flex gap-2">
                       <Button
@@ -100,10 +103,10 @@ export default function AdminPaymentReconciliationPage() {
                         {isUpdating ? (
                           <>
                             <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                            처리 중...
+                            {getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'processing')}
                           </>
                         ) : (
-                          '입금 확인'
+                          getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'confirm_paid')
                         )}
                       </Button>
                       <Button
@@ -112,7 +115,7 @@ export default function AdminPaymentReconciliationPage() {
                         disabled={isUpdating}
                         onClick={() => updateStatus(id, 'failed')}
                       >
-                        실패 처리
+                        {getAdminLabel(locale, ADMIN_PAYMENT_RECON_LABELS, 'mark_failed')}
                       </Button>
                     </div>
                   )}

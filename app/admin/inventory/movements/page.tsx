@@ -19,38 +19,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { InventoryMovement, InventoryMovementType } from '@/lib/types'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { getAdminLabel, ADMIN_MOVEMENTS_LABELS, ADMIN_COMMON_LABELS } from '@/lib/admin-i18n'
 
 type MovementTypeKey = InventoryMovementType | 'sale' | 'manual_adjustment' | 'cancel_restore' | 'spoilage' | 'restock' | string
 
-type TypeConfig = { label: string; icon: React.ComponentType<{ className?: string }>; color: string }
+type TypeConfig = { labelKey: string; icon: React.ComponentType<{ className?: string }>; color: string }
 
 const TYPE_CONFIG: Record<string, TypeConfig> = {
-  in: { label: '입고', icon: ArrowUpCircle, color: 'text-green-600' },
-  out: { label: '출고', icon: ArrowDownCircle, color: 'text-orange-600' },
-  adjust: { label: '조정', icon: RefreshCw, color: 'text-blue-600' },
-  waste: { label: '폐기', icon: Trash2, color: 'text-destructive' },
-  order_deduct: { label: '주문 차감', icon: ShoppingBag, color: 'text-primary' },
-  sale: { label: '판매', icon: ShoppingBag, color: 'text-primary' },
-  manual_adjustment: { label: '수기 조정', icon: RefreshCw, color: 'text-blue-600' },
-  cancel_restore: { label: '취소 복구', icon: ArrowUpCircle, color: 'text-green-600' },
-  spoilage: { label: '폐기', icon: Trash2, color: 'text-destructive' },
-  restock: { label: '재입고', icon: ArrowUpCircle, color: 'text-green-600' },
+  in: { labelKey: 'type_in', icon: ArrowUpCircle, color: 'text-green-600' },
+  out: { labelKey: 'type_out', icon: ArrowDownCircle, color: 'text-orange-600' },
+  adjust: { labelKey: 'type_adjust', icon: RefreshCw, color: 'text-blue-600' },
+  waste: { labelKey: 'type_waste', icon: Trash2, color: 'text-destructive' },
+  order_deduct: { labelKey: 'type_order_deduct', icon: ShoppingBag, color: 'text-primary' },
+  sale: { labelKey: 'type_sale', icon: ShoppingBag, color: 'text-primary' },
+  manual_adjustment: { labelKey: 'type_manual', icon: RefreshCw, color: 'text-blue-600' },
+  cancel_restore: { labelKey: 'type_cancel_restore', icon: ArrowUpCircle, color: 'text-green-600' },
+  spoilage: { labelKey: 'type_spoilage', icon: Trash2, color: 'text-destructive' },
+  restock: { labelKey: 'type_restock', icon: ArrowUpCircle, color: 'text-green-600' },
 }
 
 const FALLBACK_TYPE: TypeConfig = TYPE_CONFIG.manual_adjustment
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('ko-KR', { 
-    month: 'short', 
-    day: 'numeric', 
-    hour: '2-digit', 
+function formatDate(iso: string, locale: 'ko' | 'vi') {
+  const localeTag = locale === 'vi' ? 'vi-VN' : 'ko-KR'
+  return new Date(iso).toLocaleString(localeTag, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'Asia/Ho_Chi_Minh'
+    timeZone: 'Asia/Ho_Chi_Minh',
   })
 }
 
 export default function InventoryMovementsPage() {
   type Movement = Omit<InventoryMovement, 'type'> & { type: MovementTypeKey }
+  const { locale } = useAdminLocale()
   const [movements, setMovements] = useState<Movement[]>([])
   const [itemsByProductId, setItemsByProductId] = useState<Record<string, string>>({})
   const [search, setSearch] = useState('')
@@ -71,7 +75,7 @@ export default function InventoryMovementsPage() {
           movements?: Array<Record<string, unknown>>
         }
         if (!response.ok) {
-          toast.error(result.error || '입출고 내역 조회 실패')
+          toast.error(result.error || getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'load_failed'))
           return
         }
 
@@ -86,7 +90,7 @@ export default function InventoryMovementsPage() {
           type: String(row.movement_type ?? 'manual_adjustment'),
           qty_change: Number(row.quantity_delta ?? 0),
           qty_before: 0,
-          qty_after: 0,
+          qty_after: Number((row as { stock_after?: unknown }).stock_after ?? 0),
           reason: String(row.note ?? row.reference_type ?? '-'),
           order_id: row.reference_id ? String(row.reference_id) : undefined,
           created_by: String((row as { handler_name?: unknown }).handler_name ?? row.created_by ?? 'system'),
@@ -94,7 +98,7 @@ export default function InventoryMovementsPage() {
         }))
         setMovements(mappedMovements)
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : '입출고 내역 조회 중 오류')
+        toast.error(error instanceof Error ? error.message : getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'load_failed'))
       }
     }
 
@@ -131,8 +135,8 @@ export default function InventoryMovementsPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">입출고 내역</h1>
-            <p className="text-sm text-muted-foreground mt-1">재고 변동 히스토리</p>
+            <h1 className="text-2xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'page_title')}</h1>
+            <p className="text-sm text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'page_subtitle')}</p>
           </div>
         </div>
       </div>
@@ -141,7 +145,7 @@ export default function InventoryMovementsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">오늘 입고</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'today_in')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-600">+{todayIn}</p>
@@ -149,7 +153,7 @@ export default function InventoryMovementsPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">오늘 출고</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'today_out')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-orange-600">-{todayOut}</p>
@@ -157,7 +161,7 @@ export default function InventoryMovementsPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">오늘 건수</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'today_count')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{todayMovements.length}</p>
@@ -165,7 +169,7 @@ export default function InventoryMovementsPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">전체 건수</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'total_count')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{movements.length}</p>
@@ -178,7 +182,7 @@ export default function InventoryMovementsPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="상품명, 사유 검색..."
+            placeholder={getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -187,20 +191,20 @@ export default function InventoryMovementsPage() {
         <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as InventoryMovementType | 'all')}>
           <SelectTrigger className="w-[150px]">
             <Filter className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="유형 필터" />
+            <SelectValue placeholder={getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_filter')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">전체</SelectItem>
-            <SelectItem value="in">입고</SelectItem>
-            <SelectItem value="out">출고</SelectItem>
-            <SelectItem value="adjust">조정</SelectItem>
-            <SelectItem value="waste">폐기</SelectItem>
-            <SelectItem value="order_deduct">주문 차감</SelectItem>
-            <SelectItem value="sale">판매</SelectItem>
-            <SelectItem value="manual_adjustment">수기 조정</SelectItem>
-            <SelectItem value="cancel_restore">취소 복구</SelectItem>
-            <SelectItem value="spoilage">폐기(손실)</SelectItem>
-            <SelectItem value="restock">재입고</SelectItem>
+            <SelectItem value="all">{getAdminLabel(locale, ADMIN_COMMON_LABELS, 'all')}</SelectItem>
+            <SelectItem value="in">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_in')}</SelectItem>
+            <SelectItem value="out">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_out')}</SelectItem>
+            <SelectItem value="adjust">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_adjust')}</SelectItem>
+            <SelectItem value="waste">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_waste')}</SelectItem>
+            <SelectItem value="order_deduct">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_order_deduct')}</SelectItem>
+            <SelectItem value="sale">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_sale')}</SelectItem>
+            <SelectItem value="manual_adjustment">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_manual')}</SelectItem>
+            <SelectItem value="cancel_restore">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_cancel_restore')}</SelectItem>
+            <SelectItem value="spoilage">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_spoilage')}</SelectItem>
+            <SelectItem value="restock">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'type_restock')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -210,20 +214,20 @@ export default function InventoryMovementsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>일시</TableHead>
-              <TableHead>상품</TableHead>
-              <TableHead>유형</TableHead>
-              <TableHead className="text-right">변동</TableHead>
-              <TableHead className="text-right">변동 후</TableHead>
-              <TableHead>사유</TableHead>
-              <TableHead>처리자</TableHead>
+              <TableHead>{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'col_date')}</TableHead>
+              <TableHead>{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'col_product')}</TableHead>
+              <TableHead>{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'col_type')}</TableHead>
+              <TableHead className="text-right">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'col_change')}</TableHead>
+              <TableHead className="text-right">{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'col_after')}</TableHead>
+              <TableHead>{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'col_reason')}</TableHead>
+              <TableHead>{getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'col_handler')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredMovements.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                  입출고 내역이 없습니다
+                  {getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, 'empty')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -233,13 +237,13 @@ export default function InventoryMovementsPage() {
                 return (
                   <TableRow key={mov.id}>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formatDate(mov.created_at)}
+                      {formatDate(mov.created_at, locale)}
                     </TableCell>
                     <TableCell className="font-medium">{getProductName(mov.product_id)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
                         <Icon className={`w-3 h-3 mr-1 ${config.color}`} />
-                        {config.label}
+                        {getAdminLabel(locale, ADMIN_MOVEMENTS_LABELS, config.labelKey)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-mono">

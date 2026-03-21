@@ -1,36 +1,38 @@
 'use client'
 
 import { useState } from 'react'
-import { Edit, Trash2, Plus } from 'lucide-react'
+import { Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MOCK_POINTS_LEDGER, MOCK_POINTS_POLICY, MOCK_MEMBERS } from '@/lib/mock-data'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_POINTS_LABELS, ADMIN_COMMON_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 export default function PointsPage() {
+  const { locale } = useAdminLocale()
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null)
 
   const getMemberName = (memberId: string) => {
-    return MOCK_MEMBERS.find(m => m.id === memberId)?.name || '알 수 없음'
+    return MOCK_MEMBERS.find(m => m.id === memberId)?.name || getAdminLabel(locale, ADMIN_POINTS_LABELS, 'unknown')
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">포인트 관리</h1>
-        <p className="text-muted-foreground mt-1">포인트 정책 설정 및 거래 내역</p>
+        <h1 className="text-3xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'page_title')}</h1>
+        <p className="text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'page_subtitle')}</p>
       </div>
 
       {/* Policy Settings */}
       <Card className="border-primary/30">
         <CardHeader className="bg-secondary/20">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">포인트 정책</CardTitle>
+            <CardTitle className="text-lg">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'policy_title')}</CardTitle>
             <Button size="sm" variant="outline">
               <Edit className="w-4 h-4 mr-2" />
-              수정
+              {getAdminLabel(locale, ADMIN_COMMON_LABELS, 'edit')}
             </Button>
           </div>
         </CardHeader>
@@ -38,38 +40,38 @@ export default function PointsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Earning Rules */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-foreground">적립 규칙</h3>
+              <h3 className="font-semibold text-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'earn_rules')}</h3>
               <div className="space-y-3 text-sm">
                 <div>
-                  <p className="text-muted-foreground">적립률</p>
-                  <p className="font-semibold text-foreground">{MOCK_POINTS_POLICY.earn_rate_percent}% / 주문 총액</p>
+                  <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'earn_rate')}</p>
+                  <p className="font-semibold text-foreground">{MOCK_POINTS_POLICY.earn_rate_percent}% {getAdminLabel(locale, ADMIN_POINTS_LABELS, 'earn_rate_suffix')}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">최소 적립 주문금액</p>
-                  <p className="font-semibold text-foreground">{MOCK_POINTS_POLICY.min_order_to_earn_vnd.toLocaleString()} VND</p>
+                  <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'min_order_to_earn')}</p>
+                  <p className="font-semibold text-foreground">{MOCK_POINTS_POLICY.min_order_to_earn_vnd.toLocaleString()} {getAdminLabel(locale, ADMIN_POINTS_LABELS, 'point_value_suffix')}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">포인트 가치</p>
-                  <p className="font-semibold text-foreground">1 포인트 = {MOCK_POINTS_POLICY.points_per_vnd.toLocaleString()} VND</p>
+                  <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'point_value')}</p>
+                  <p className="font-semibold text-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'point_value_display').replace('{n}', MOCK_POINTS_POLICY.points_per_vnd.toLocaleString())}</p>
                 </div>
               </div>
             </div>
 
             {/* Redemption Rules */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-foreground">사용 규칙</h3>
+              <h3 className="font-semibold text-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'redeem_rules')}</h3>
               <div className="space-y-3 text-sm">
                 <div>
-                  <p className="text-muted-foreground">최소 사용 포인트</p>
-                  <p className="font-semibold text-foreground">{MOCK_POINTS_POLICY.min_points_to_redeem.toLocaleString()} 포인트</p>
+                  <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'min_to_redeem')}</p>
+                  <p className="font-semibold text-foreground">{MOCK_POINTS_POLICY.min_points_to_redeem.toLocaleString()} {getAdminLabel(locale, ADMIN_POINTS_LABELS, 'min_redeem_suffix')}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">최대 사용 비율</p>
-                  <p className="font-semibold text-foreground">주문 총액의 {MOCK_POINTS_POLICY.max_redeem_percent}%까지</p>
+                  <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'max_redeem')}</p>
+                  <p className="font-semibold text-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'max_redeem_suffix')} {MOCK_POINTS_POLICY.max_redeem_percent}%{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'max_redeem_suffix2')}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">포인트 유효기간</p>
-                  <p className="font-semibold text-foreground">{MOCK_POINTS_POLICY.expiry_months}개월</p>
+                  <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'expiry')}</p>
+                  <p className="font-semibold text-foreground">{MOCK_POINTS_POLICY.expiry_months}{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'expiry_suffix')}</p>
                 </div>
               </div>
             </div>
@@ -77,16 +79,16 @@ export default function PointsPage() {
 
           {/* Tier Multipliers */}
           <div className="mt-6 pt-6 border-t border-border">
-            <h3 className="font-semibold text-foreground mb-4">회원 등급별 적립배수</h3>
+            <h3 className="font-semibold text-foreground mb-4">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'tier_multipliers')}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { tier: 'bronze', label: '브론즈', multiplier: MOCK_POINTS_POLICY.tier_multipliers.bronze },
-                { tier: 'silver', label: '실버', multiplier: MOCK_POINTS_POLICY.tier_multipliers.silver },
-                { tier: 'gold', label: '골드', multiplier: MOCK_POINTS_POLICY.tier_multipliers.gold },
-                { tier: 'vip', label: 'VIP', multiplier: MOCK_POINTS_POLICY.tier_multipliers.vip },
-              ].map(({ tier, label, multiplier }) => (
+                { tier: 'bronze', labelKey: 'tier_bronze', multiplier: MOCK_POINTS_POLICY.tier_multipliers.bronze },
+                { tier: 'silver', labelKey: 'tier_silver', multiplier: MOCK_POINTS_POLICY.tier_multipliers.silver },
+                { tier: 'gold', labelKey: 'tier_gold', multiplier: MOCK_POINTS_POLICY.tier_multipliers.gold },
+                { tier: 'vip', labelKey: 'tier_vip', multiplier: MOCK_POINTS_POLICY.tier_multipliers.vip },
+              ].map(({ tier, labelKey, multiplier }) => (
                 <div key={tier} className="text-center p-4 bg-muted/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground">{label}</p>
+                  <p className="text-sm text-muted-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, labelKey)}</p>
                   <p className="text-2xl font-bold text-primary">{multiplier}x</p>
                 </div>
               ))}
@@ -95,18 +97,18 @@ export default function PointsPage() {
 
           {/* Tier Thresholds */}
           <div className="mt-6 pt-6 border-t border-border">
-            <h3 className="font-semibold text-foreground mb-4">등급별 누적 구매액 기준</h3>
+            <h3 className="font-semibold text-foreground mb-4">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'tier_thresholds')}</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between py-2 border-b border-border/50">
-                <span className="text-muted-foreground">실버 이상</span>
+                <span className="text-muted-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'tier_silver_above')}</span>
                 <span className="font-semibold text-foreground">{MOCK_POINTS_POLICY.tier_thresholds.silver.toLocaleString()} VND</span>
               </div>
               <div className="flex justify-between py-2 border-b border-border/50">
-                <span className="text-muted-foreground">골드 이상</span>
+                <span className="text-muted-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'tier_gold_above')}</span>
                 <span className="font-semibold text-foreground">{MOCK_POINTS_POLICY.tier_thresholds.gold.toLocaleString()} VND</span>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">VIP 이상</span>
+                <span className="text-muted-foreground">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'tier_vip_above')}</span>
                 <span className="font-semibold text-foreground">{MOCK_POINTS_POLICY.tier_thresholds.vip.toLocaleString()} VND</span>
               </div>
             </div>
@@ -117,7 +119,7 @@ export default function PointsPage() {
       {/* Transactions */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">포인트 거래 내역</CardTitle>
+          <CardTitle className="text-lg">{getAdminLabel(locale, ADMIN_POINTS_LABELS, 'ledger_title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -135,14 +137,14 @@ export default function PointsPage() {
                       ledger.type === 'expire' ? 'destructive' :
                       'outline'
                     } className="text-xs">
-                      {ledger.type === 'earn' && '적립'}
-                      {ledger.type === 'redeem' && '사용'}
-                      {ledger.type === 'expire' && '만료'}
-                      {ledger.type === 'adjust' && '조정'}
+                      {ledger.type === 'earn' && getAdminLabel(locale, ADMIN_POINTS_LABELS, 'type_earn')}
+                      {ledger.type === 'redeem' && getAdminLabel(locale, ADMIN_POINTS_LABELS, 'type_redeem')}
+                      {ledger.type === 'expire' && getAdminLabel(locale, ADMIN_POINTS_LABELS, 'type_expire')}
+                      {ledger.type === 'adjust' && getAdminLabel(locale, ADMIN_POINTS_LABELS, 'type_adjust')}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(ledger.created_at).toLocaleString('ko-KR')}
+                    {new Date(ledger.created_at).toLocaleString(locale === 'vi' ? 'vi-VN' : 'ko-KR')}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0 ml-4">
@@ -150,7 +152,7 @@ export default function PointsPage() {
                     {ledger.amount > 0 ? '+' : ''}{ledger.amount.toLocaleString()}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    잔액: {ledger.balance_after.toLocaleString()}
+                    {getAdminLabel(locale, ADMIN_POINTS_LABELS, 'balance')}: {ledger.balance_after.toLocaleString()}
                   </p>
                 </div>
               </div>

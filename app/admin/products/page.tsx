@@ -30,6 +30,8 @@ import type { Product, ProductCategory } from '@/lib/types'
 import { toast } from 'sonner'
 import { fetchProductsFromSupabase } from '@/lib/products/queries'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { getAdminLabel, ADMIN_PRODUCTS_LABELS, ADMIN_COMMON_LABELS } from '@/lib/admin-i18n'
 
 function formatVND(amount: number) {
   return new Intl.NumberFormat('vi-VN').format(amount)
@@ -38,15 +40,16 @@ function formatVND(amount: number) {
 const hasValidImageSrc = (url: unknown): url is string =>
   typeof url === 'string' && url.trim().length > 0
 
-const CATEGORY_LABELS: Record<ProductCategory, string> = {
-  jarred: '장요리',
-  poke: '포케',
-  sets: '세트/선물',
-  sides: '곁들임',
-  beverages: '음료',
+const CATEGORY_KEYS: Record<ProductCategory, string> = {
+  jarred: 'category_jarred',
+  poke: 'category_poke',
+  sets: 'category_sets',
+  sides: 'category_sides',
+  beverages: 'category_beverages',
 }
 
 export default function AdminProductsPage() {
+  const { locale } = useAdminLocale()
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -88,7 +91,7 @@ export default function AdminProductsPage() {
       const data = await fetchProductsFromSupabase()
       setProducts(data)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '상품 목록을 불러오지 못했습니다.')
+      toast.error(error instanceof Error ? error.message : getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'load_failed'))
     } finally {
       setIsLoading(false)
     }
@@ -127,7 +130,7 @@ export default function AdminProductsPage() {
         result = null
       }
       if (!response.ok) {
-        toast.error(getApiError(result, '상품 저장에 실패했습니다.'))
+        toast.error(getApiError(result, getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'save_failed')))
         return false
       }
 
@@ -136,7 +139,7 @@ export default function AdminProductsPage() {
       }
       return true
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '상품 저장 중 오류가 발생했습니다.')
+      toast.error(error instanceof Error ? error.message : getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'save_failed'))
       return false
     } finally {
       setIsSaving(false)
@@ -153,7 +156,7 @@ export default function AdminProductsPage() {
     setProducts((prevList) => prevList.map((p) => (p.id === productId ? { ...p, is_available: nextValue } : p)))
     const ok = await persistProduct({ ...target, is_available: nextValue }, { reload: false })
     if (ok) {
-      toast.success('판매 상태가 변경되었습니다.')
+      toast.success(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'sale_toggled'))
     } else {
       setProducts((prevList) => prevList.map((p) => (p.id === productId ? { ...p, is_available: prev } : p)))
     }
@@ -164,7 +167,7 @@ export default function AdminProductsPage() {
     const target = products.find((item) => item.id === productId)
     if (!target) return
     const ok = await persistProduct({ ...target, is_popular: !target.is_popular })
-    if (ok) toast.success('인기 설정이 변경되었습니다.')
+    if (ok) toast.success(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'popular_toggled'))
   }
 
   const handleEdit = (product: Product) => {
@@ -201,7 +204,7 @@ export default function AdminProductsPage() {
     if (!editingProduct) return
 
     if (!editingProduct.name_ko.trim() || editingProduct.base_price_vnd <= 0) {
-      toast.error('이름과 가격을 확인해주세요.')
+      toast.error(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'check_name_price'))
       return
     }
 
@@ -221,11 +224,11 @@ export default function AdminProductsPage() {
     initialSnapshotRef.current = null
     setIsDialogOpen(false)
     setEditingProduct(null)
-    toast.success('메뉴가 저장되었습니다.')
+    toast.success(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'menu_saved'))
   }
 
   const handleDelete = async (productId: string) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return
+    if (!confirm(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'delete_confirm'))) return
 
     try {
       const token = await getAccessToken()
@@ -244,14 +247,14 @@ export default function AdminProductsPage() {
         result = null
       }
       if (!response.ok) {
-        toast.error(getApiError(result, '삭제에 실패했습니다.'))
+        toast.error(getApiError(result, getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'delete_failed')))
         return
       }
 
       await loadProducts()
-      toast.success('메뉴가 삭제되었습니다.')
+      toast.success(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'menu_deleted'))
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '삭제 중 오류가 발생했습니다.')
+      toast.error(error instanceof Error ? error.message : getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'delete_error'))
     }
   }
 
@@ -265,7 +268,7 @@ export default function AdminProductsPage() {
           {
             id: `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             product_id: prev.id || 'new',
-            name_ko: '새 옵션 그룹',
+            name_ko: getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_new_group_default'),
             required: false,
             single_select: true,
             min_select: 0,
@@ -292,7 +295,7 @@ export default function AdminProductsPage() {
                   {
                     id: `opt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                     option_group_id: group.id,
-                    name_ko: '새 옵션',
+                    name_ko: getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_new_value_default'),
                     display_order: group.option_values.length,
                     is_available: true,
                     is_sold_out: false,
@@ -394,7 +397,7 @@ export default function AdminProductsPage() {
     setEditingProduct((prev) =>
       prev ? { ...prev, option_groups: [...prev.option_groups, newGroup] } : prev
     )
-    toast.success('옵션 그룹이 복제되었습니다.')
+    toast.success(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'toast_option_group_duplicated'))
   }
 
   const duplicateOptionValue = (groupIdx: number, optIdx: number) => {
@@ -419,7 +422,7 @@ export default function AdminProductsPage() {
         ),
       }
     })
-    toast.success('옵션이 복제되었습니다.')
+    toast.success(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'toast_option_value_duplicated'))
   }
 
   const handleDialogOpenChange = (open: boolean) => {
@@ -428,7 +431,7 @@ export default function AdminProductsPage() {
         initialSnapshotRef.current != null &&
         editingProduct != null &&
         JSON.stringify(editingProduct) !== initialSnapshotRef.current
-      if (dirty && !confirm('저장하지 않은 변경사항이 있습니다. 닫으시겠습니까?')) return
+      if (dirty && !confirm(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'unsaved_confirm'))) return
       initialSnapshotRef.current = null
       setEditingProduct(null)
     }
@@ -439,13 +442,13 @@ export default function AdminProductsPage() {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">메뉴 관리</h1>
-          <p className="text-sm text-muted-foreground">상품을 추가하고 관리합니다</p>
-          <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">※ 대표 이미지와 옵션이 저장됩니다.</p>
+          <h1 className="text-2xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'page_title')}</h1>
+          <p className="text-sm text-muted-foreground">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'page_subtitle')}</p>
+          <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'save_note')}</p>
         </div>
         <Button onClick={handleCreate}>
           <Plus className="w-4 h-4 mr-2" />
-          메뉴 추가
+          {getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'add_product')}
         </Button>
       </div>
 
@@ -456,7 +459,7 @@ export default function AdminProductsPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="메뉴 검색..."
+                placeholder={getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'search_placeholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -464,12 +467,12 @@ export default function AdminProductsPage() {
             </div>
             <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as ProductCategory | 'all')}>
               <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="카테고리" />
+                <SelectValue placeholder={getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'category')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                <SelectItem value="all">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'all_categories')}</SelectItem>
+                {Object.entries(CATEGORY_KEYS).map(([value, key]) => (
+                  <SelectItem key={value} value={value}>{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, key)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -479,24 +482,24 @@ export default function AdminProductsPage() {
 
       {/* Products Table */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{sortedProducts.length}개의 메뉴</CardTitle>
+          <CardHeader className="pb-3">
+          <CardTitle className="text-base">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'product_count').replace('{count}', String(sortedProducts.length))}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6 text-sm text-muted-foreground">상품 목록을 불러오는 중...</div>
+            <div className="p-6 text-sm text-muted-foreground">...</div>
           ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
-                  <TableHead>메뉴</TableHead>
-                  <TableHead>카테고리</TableHead>
-                  <TableHead className="text-right">가격</TableHead>
-                  <TableHead className="text-center">판매중</TableHead>
-                  <TableHead className="text-center">인기</TableHead>
-                  <TableHead className="text-right">작업</TableHead>
+                  <TableHead>{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'col_menu')}</TableHead>
+                  <TableHead>{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'col_category')}</TableHead>
+                  <TableHead className="text-right">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'col_price')}</TableHead>
+                  <TableHead className="text-center">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'col_onsale')}</TableHead>
+                  <TableHead className="text-center">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'col_popular')}</TableHead>
+                  <TableHead className="text-right">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'col_actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -513,7 +516,7 @@ export default function AdminProductsPage() {
                             return hasValidImageSrc(src) ? (
                               <Image src={src} alt={product.name_ko} fill className="object-cover" sizes="48px" />
                             ) : (
-                              <span className="text-[10px] text-muted-foreground">이미지 없음</span>
+                              <span className="text-[10px] text-muted-foreground">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'no_image')}</span>
                             )
                           })()}
                         </div>
@@ -524,7 +527,7 @@ export default function AdminProductsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{CATEGORY_LABELS[product.category]}</Badge>
+                      <Badge variant="outline">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, CATEGORY_KEYS[product.category])}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatVND(product.base_price_vnd)}
@@ -567,32 +570,32 @@ export default function AdminProductsPage() {
       <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingProduct ? '메뉴 수정' : '메뉴 추가'}</DialogTitle>
+            <DialogTitle>{editingProduct?.id ? getAdminLabel(locale, ADMIN_COMMON_LABELS, 'edit') : getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'add_product')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 py-4">
             {/* Basic Info */}
             <div className="space-y-4 border-b pb-4">
-              <h3 className="font-semibold text-sm">기본 정보</h3>
+              <h3 className="font-semibold text-sm">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'basic_info')}</h3>
               <div>
-                <Label>메뉴 이름 *</Label>
+                <Label>{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'product_name')}</Label>
                 <Input
                   value={editingProduct?.name_ko || ''}
                   onChange={(e) => setEditingProduct(prev => prev ? { ...prev, name_ko: e.target.value } : null)}
-                  placeholder="간장게장"
+                  placeholder={getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'name_placeholder')}
                 />
               </div>
               <div>
-                <Label>설명</Label>
+                <Label>{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'description')}</Label>
                 <Textarea
                   value={editingProduct?.desc_ko || ''}
                   onChange={(e) => setEditingProduct(prev => prev ? { ...prev, desc_ko: e.target.value } : null)}
-                  placeholder="메뉴 설명..."
+                  placeholder={getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'description_placeholder')}
                   rows={2}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>카테고리 *</Label>
+                  <Label>{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'category')} *</Label>
                   <Select
                     value={editingProduct?.category || 'jarred'}
                     onValueChange={(v) => setEditingProduct(prev => prev ? { ...prev, category: v as ProductCategory } : null)}
@@ -601,14 +604,14 @@ export default function AdminProductsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      {Object.entries(CATEGORY_KEYS).map(([value, key]) => (
+                        <SelectItem key={value} value={value}>{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, key)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>가격 (VND) *</Label>
+                  <Label>{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'price')}</Label>
                   <Input
                     type="number"
                     value={editingProduct?.base_price_vnd || 0}
@@ -620,15 +623,15 @@ export default function AdminProductsPage() {
 
             {/* Images */}
             <div className="space-y-4 border-b pb-4">
-              <h3 className="font-semibold text-sm">이미지 관리</h3>
+              <h3 className="font-semibold text-sm">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'image_management')}</h3>
               <div className="border-2 border-dashed rounded-lg p-6 text-center bg-muted/50">
                 <div className="relative w-20 h-20 rounded overflow-hidden bg-muted mx-auto mb-2 flex items-center justify-center">
                   {(() => {
                     const src = editingProduct?.images?.[0]?.url || editingProduct?.image_url
                     return hasValidImageSrc(src) ? (
-                      <Image src={src} alt="대표" fill className="object-cover" sizes="80px" />
+                      <Image src={src} alt={getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'image_featured_alt')} fill className="object-cover" sizes="80px" />
                     ) : (
-                      <span className="text-xs text-muted-foreground">이미지 없음</span>
+                      <span className="text-xs text-muted-foreground">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'no_image')}</span>
                     )
                   })()}
                 </div>
@@ -658,7 +661,7 @@ export default function AdminProductsPage() {
                         data = {}
                       }
                       if (!res.ok) {
-                        toast.error(getApiError(data, '이미지 업로드에 실패했습니다.'))
+                        toast.error(getApiError(data, getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'upload_failed')))
                         return
                       }
                       const publicUrl = data.publicUrl
@@ -668,14 +671,14 @@ export default function AdminProductsPage() {
                             ? {
                                 ...prev,
                                 image_url: publicUrl,
-                                images: [{ id: 'uploaded', product_id: prev.id || '', url: publicUrl, alt_text: prev.name_ko || '상품 이미지', is_featured: true, display_order: 0, uploaded_at: new Date().toISOString() }],
+                                images: [{ id: 'uploaded', product_id: prev.id || '', url: publicUrl, alt_text: prev.name_ko || getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'image_alt_fallback'), is_featured: true, display_order: 0, uploaded_at: new Date().toISOString() }],
                               }
                             : null
                         )
-                        toast.success('이미지가 적용되었습니다. 저장 버튼을 눌러 반영하세요.')
+                        toast.success(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'image_applied'))
                       }
                     } catch (err) {
-                      toast.error(err instanceof Error ? err.message : '이미지 업로드 중 오류가 발생했습니다.')
+                      toast.error(err instanceof Error ? err.message : getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'upload_error'))
                     } finally {
                       setIsUploadingImage(false)
                       e.target.value = ''
@@ -689,17 +692,17 @@ export default function AdminProductsPage() {
                   disabled={isUploadingImage}
                   onClick={() => imageInputRef.current?.click()}
                 >
-                  {isUploadingImage ? '업로드 중...' : '이미지 선택'}
+                  {isUploadingImage ? getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'uploading') : getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'select_image')}
                 </Button>
               </div>
             </div>
 
             {/* Product Info */}
             <div className="space-y-4 border-b pb-4">
-              <h3 className="font-semibold text-sm">상품 정보</h3>
+              <h3 className="font-semibold text-sm">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'product_info')}</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs">중량 (g)</Label>
+                  <Label className="text-xs">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'weight')}</Label>
                   <Input
                     type="number"
                     value={editingProduct?.weight_g || 0}
@@ -707,7 +710,7 @@ export default function AdminProductsPage() {
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">유통기한 (일)</Label>
+                  <Label className="text-xs">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'shelf_life')}</Label>
                   <Input
                     type="number"
                     value={editingProduct?.shelf_life_days || 0}
@@ -716,19 +719,19 @@ export default function AdminProductsPage() {
                 </div>
               </div>
               <div>
-                <Label className="text-xs">보관 방법</Label>
+                <Label className="text-xs">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'storage')}</Label>
                 <Input
                   value={editingProduct?.storage_instructions || ''}
                   onChange={(e) => setEditingProduct(prev => prev ? { ...prev, storage_instructions: e.target.value } : null)}
-                  placeholder="냉장 2-4℃ 보관"
+                  placeholder={getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'storage_placeholder')}
                 />
               </div>
               <div>
-                <Label className="text-xs">알러지 (쉼표로 구분)</Label>
+                <Label className="text-xs">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'allergens')}</Label>
                 <Input
                   value={editingProduct?.allergens?.join(', ') || ''}
                   onChange={(e) => setEditingProduct(prev => prev ? { ...prev, allergens: e.target.value.split(',').map(a => a.trim()) } : null)}
-                  placeholder="crustacean, soy"
+                  placeholder={getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'allergens_placeholder')}
                 />
               </div>
             </div>
@@ -736,9 +739,9 @@ export default function AdminProductsPage() {
             {/* Options */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm">옵션 그룹 ({editingProduct?.option_groups.length || 0}개)</h3>
+                <h3 className="font-semibold text-sm">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'option_groups')} ({editingProduct?.option_groups.length || 0})</h3>
                 <Button type="button" variant="outline" size="sm" onClick={addOptionGroup}>
-                  옵션 그룹 추가
+                  {getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'add_option_group')}
                 </Button>
               </div>
               <input
@@ -772,7 +775,7 @@ export default function AdminProductsPage() {
                       data = {}
                     }
                     if (!res.ok) {
-                      toast.error(getApiError(data, '이미지 업로드에 실패했습니다.'))
+                      toast.error(getApiError(data, getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'upload_failed')))
                       return
                     }
                     const publicUrl = data.publicUrl
@@ -794,10 +797,10 @@ export default function AdminProductsPage() {
                             }
                           : null
                       )
-                      toast.success('옵션 이미지가 적용되었습니다. 저장 버튼을 눌러 반영하세요.')
+                      toast.success(getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_image_applied'))
                     }
                   } catch (err) {
-                    toast.error(err instanceof Error ? err.message : '이미지 업로드 중 오류가 발생했습니다.')
+                    toast.error(err instanceof Error ? err.message : getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'upload_error'))
                   } finally {
                     setUploadingOptionKey(null)
                     optionUploadTargetRef.current = null
@@ -846,9 +849,9 @@ export default function AdminProductsPage() {
                     </div>
                     {isCollapsed ? (
                       <div className="flex-1 flex items-center gap-2 text-sm">
-                        <span className="font-medium truncate">{group.name_ko || '옵션 그룹'}</span>
-                        {group.required && <span className="text-destructive text-xs">필수</span>}
-                        <span className="text-xs text-muted-foreground">옵션 {group.option_values.length}개</span>
+                        <span className="font-medium truncate">{group.name_ko || getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'option_group_fallback')}</span>
+                        {group.required && <span className="text-destructive text-xs">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'required_badge')}</span>}
+                        <span className="text-xs text-muted-foreground">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'option_count_format').replace('{count}', String(group.option_values.length))}</span>
                       </div>
                     ) : (
                       <Input
@@ -878,7 +881,7 @@ export default function AdminProductsPage() {
                           onClick={() => duplicateOptionGroup(groupIdx)}
                         >
                           <Copy className="w-3 h-3 mr-0.5" />
-                          복제
+                          {getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_duplicate')}
                         </Button>
                       )}
                       <button
@@ -894,7 +897,7 @@ export default function AdminProductsPage() {
                         }
                         className="text-xs text-destructive px-2 py-1 hover:bg-destructive/10 rounded"
                       >
-                        삭제
+                        {getAdminLabel(locale, ADMIN_COMMON_LABELS, 'delete')}
                       </button>
                     </div>
                   </div>
@@ -902,7 +905,7 @@ export default function AdminProductsPage() {
                   <div className="p-3 space-y-3 border-t">
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <label className="flex items-center justify-between gap-2 border rounded-md p-2">
-                      필수
+                      {getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'required_badge')}
                       <Switch
                         checked={group.required}
                         onCheckedChange={(checked) =>
@@ -926,7 +929,7 @@ export default function AdminProductsPage() {
                       />
                     </label>
                     <label className="flex items-center justify-between gap-2 border rounded-md p-2">
-                      단일 선택
+                      {getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_single_select')}
                       <Switch
                         checked={group.single_select}
                         onCheckedChange={(checked) =>
@@ -952,7 +955,7 @@ export default function AdminProductsPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-xs">최소 선택</Label>
+                      <Label className="text-xs">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_min_select')}</Label>
                       <Input
                         type="number"
                         value={group.min_select}
@@ -971,7 +974,7 @@ export default function AdminProductsPage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">최대 선택</Label>
+                      <Label className="text-xs">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_max_select')}</Label>
                       <Input
                         type="number"
                         value={group.max_select}
@@ -992,9 +995,9 @@ export default function AdminProductsPage() {
                   </div>
                   <div className="text-xs space-y-2">
                     <div className="flex items-center justify-between">
-                      <p><strong>옵션값 ({group.option_values.length}개)</strong></p>
+                      <p><strong>{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_values_title_format').replace('{count}', String(group.option_values.length))}</strong></p>
                       <Button type="button" variant="outline" size="sm" onClick={() => addOptionValue(group.id)}>
-                        옵션값 추가
+                        {getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'add_option_value')}
                       </Button>
                     </div>
                     <div className="space-y-2">
@@ -1080,7 +1083,7 @@ export default function AdminProductsPage() {
                             />
                           </div>
                           <div>
-                            <Label className="text-xs">옵션 이미지</Label>
+                            <Label className="text-xs">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_image_label')}</Label>
                             <div className="flex items-center gap-2 mt-0.5">
                               {hasValidImageSrc(opt.image_url) && (
                                 <div className="relative w-10 h-10 rounded-md overflow-hidden bg-muted shrink-0">
@@ -1099,7 +1102,7 @@ export default function AdminProductsPage() {
                                     optionImageInputRef.current?.click()
                                   }}
                                 >
-                                  {uploadingOptionKey === `${groupIdx}-${optIdx}` ? '업로드 중...' : '이미지 업로드'}
+                                  {uploadingOptionKey === `${groupIdx}-${optIdx}` ? getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'uploading') : getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_image_upload')}
                                 </Button>
                                 {hasValidImageSrc(opt.image_url) && (
                                   <Button
@@ -1127,7 +1130,7 @@ export default function AdminProductsPage() {
                                       )
                                     }
                                   >
-                                    이미지 제거
+                                    {getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_image_remove')}
                                   </Button>
                                 )}
                               </div>
@@ -1174,7 +1177,7 @@ export default function AdminProductsPage() {
                               onClick={() => duplicateOptionValue(groupIdx, optIdx)}
                             >
                               <Copy className="w-3 h-3 mr-0.5" />
-                              복제
+                              {getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'opt_duplicate')}
                             </Button>
                             <button
                               onClick={() =>
@@ -1196,7 +1199,7 @@ export default function AdminProductsPage() {
                               }
                               className="text-destructive text-xs px-2 py-1 hover:bg-destructive/10 rounded"
                             >
-                              삭제
+                              {getAdminLabel(locale, ADMIN_COMMON_LABELS, 'delete')}
                             </button>
                             </div>
                           </div>
@@ -1212,9 +1215,9 @@ export default function AdminProductsPage() {
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <p className="text-xs text-muted-foreground sm:mr-auto self-start">기본 정보, 대표 이미지, 옵션이 저장됩니다</p>
-            <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>취소</Button>
-            <Button onClick={handleSave} disabled={isSaving}>{isSaving ? '저장 중...' : '저장'}</Button>
+            <p className="text-xs text-muted-foreground sm:mr-auto self-start">{getAdminLabel(locale, ADMIN_PRODUCTS_LABELS, 'save_footer')}</p>
+            <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>{getAdminLabel(locale, ADMIN_COMMON_LABELS, 'cancel')}</Button>
+            <Button onClick={handleSave} disabled={isSaving}>{isSaving ? getAdminLabel(locale, ADMIN_COMMON_LABELS, 'saving') : getAdminLabel(locale, ADMIN_COMMON_LABELS, 'save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

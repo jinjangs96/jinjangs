@@ -108,7 +108,7 @@ export default function DashboardPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_DASHBOARD_LABELS, 'page_title')}</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+          {new Date().toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
         </p>
       </div>
 

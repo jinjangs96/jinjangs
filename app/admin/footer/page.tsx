@@ -6,8 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MOCK_SITE_SETTINGS } from '@/lib/mock-data'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_FOOTER_LABELS, ADMIN_COMMON_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 export default function FooterPage() {
+  const { locale } = useAdminLocale()
   const [footerData, setFooterData] = useState(MOCK_SITE_SETTINGS.footer_sections)
   const [editingSection, setEditingSection] = useState<string | null>(null)
 
@@ -20,7 +23,7 @@ export default function FooterPage() {
               ...section.links,
               {
                 id: `link-${Date.now()}`,
-                label_ko: '새 링크',
+                label_ko: getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'new_link_label'),
                 url: '#',
                 open_in_new_tab: false,
               },
@@ -45,8 +48,8 @@ export default function FooterPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">푸터 관리</h1>
-        <p className="text-muted-foreground mt-1">웹사이트 푸터 섹션 및 링크 관리</p>
+        <h1 className="text-3xl font-bold text-foreground">{getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'page_title')}</h1>
+        <p className="text-muted-foreground mt-1">{getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'page_subtitle')}</p>
       </div>
 
       {/* Footer Sections */}
@@ -63,7 +66,7 @@ export default function FooterPage() {
                     onClick={() => setEditingSection(editingSection === section.id ? null : section.id)}
                   >
                     <Edit className="w-4 h-4 mr-2" />
-                    {editingSection === section.id ? '완료' : '수정'}
+                    {editingSection === section.id ? getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'done') : getAdminLabel(locale, ADMIN_COMMON_LABELS, 'edit')}
                   </Button>
                 </div>
               </div>
@@ -72,7 +75,7 @@ export default function FooterPage() {
               {editingSection === section.id ? (
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-foreground">섹션 제목</label>
+                    <label className="text-sm font-medium text-foreground">{getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'section_title_label')}</label>
                     <Input 
                       value={section.title_ko} 
                       onChange={(e) => {
@@ -86,14 +89,14 @@ export default function FooterPage() {
 
                   <div className="space-y-3 pt-4 border-t border-border">
                     <div className="flex items-center justify-between">
-                      <p className="font-semibold text-foreground">링크</p>
+                      <p className="font-semibold text-foreground">{getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'links_label')}</p>
                       <Button 
                         size="sm" 
                         variant="outline"
                         onClick={() => handleAddLink(section.id)}
                       >
                         <Plus className="w-3 h-3 mr-1" />
-                        추가
+                        {getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'add_btn')}
                       </Button>
                     </div>
 
@@ -101,7 +104,7 @@ export default function FooterPage() {
                       <div key={link.id} className="flex gap-2 items-end">
                         <div className="flex-1 space-y-2">
                           <Input 
-                            placeholder="링크 텍스트"
+                            placeholder={getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'link_text_placeholder')}
                             value={link.label_ko}
                             onChange={(e) => {
                               setFooterData(footerData.map(s =>
@@ -120,7 +123,7 @@ export default function FooterPage() {
                             className="text-sm"
                           />
                           <Input 
-                            placeholder="URL"
+                            placeholder={getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'url_placeholder')}
                             value={link.url}
                             onChange={(e) => {
                               setFooterData(footerData.map(s =>
@@ -160,7 +163,7 @@ export default function FooterPage() {
                         <p className="text-xs text-muted-foreground truncate">{link.url}</p>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {link.open_in_new_tab ? '새창' : '현재창'}
+                        {link.open_in_new_tab ? getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'new_tab') : getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'current_tab')}
                       </p>
                     </div>
                   ))}
@@ -174,7 +177,7 @@ export default function FooterPage() {
       {/* Preview */}
       <Card className="border-primary/30 bg-secondary/10">
         <CardHeader>
-          <CardTitle className="text-lg">미리보기</CardTitle>
+          <CardTitle className="text-lg">{getAdminLabel(locale, ADMIN_FOOTER_LABELS, 'preview_title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="bg-background p-6 rounded-lg">

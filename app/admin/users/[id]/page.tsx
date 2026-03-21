@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_USERS_LABELS, ADMIN_COMMON_LABELS, ADMIN_ROLE_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 type Detail = {
   role?: { role?: string; is_active?: boolean }
@@ -17,6 +19,7 @@ type Detail = {
 
 export default function AdminUserDetailPage() {
   const params = useParams<{ id: string }>()
+  const { locale } = useAdminLocale()
   const [detail, setDetail] = useState<Detail | null>(null)
   const [role, setRole] = useState('viewer')
   const [isActive, setIsActive] = useState(true)
@@ -29,7 +32,7 @@ export default function AdminUserDetailPage() {
       const response = await fetch(`/api/admin/users/${params.id}`, { headers: { Authorization: `Bearer ${token}` } })
       const result = (await response.json()) as { error?: string; user?: Detail }
       if (!response.ok || !result.user) {
-        toast.error(result.error || '사용자 상세 조회 실패')
+        toast.error(result.error || getAdminLabel(locale, ADMIN_USERS_LABELS, 'detail_load_failed'))
         return
       }
       setDetail(result.user)
@@ -53,38 +56,38 @@ export default function AdminUserDetailPage() {
     })
     const result = (await response.json()) as { error?: string }
     if (!response.ok) {
-      toast.error(result.error || '저장 실패')
+      toast.error(result.error || getAdminLabel(locale, ADMIN_USERS_LABELS, 'save_failed'))
       return
     }
-    toast.success('권한이 저장되었습니다.')
+    toast.success(getAdminLabel(locale, ADMIN_USERS_LABELS, 'save_success'))
   }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <Card>
-        <CardHeader><CardTitle>직원 상세</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{getAdminLabel(locale, ADMIN_USERS_LABELS, 'detail_title')}</CardTitle></CardHeader>
         <CardContent className="space-y-4 text-sm">
-          <p>이름: {detail?.profile?.full_name || '-'}</p>
-          <p>이메일: {detail?.profile?.email || '-'}</p>
-          <p>전화: {detail?.profile?.phone || '-'}</p>
+          <p>{getAdminLabel(locale, ADMIN_USERS_LABELS, 'name')}: {detail?.profile?.full_name || '-'}</p>
+          <p>{getAdminLabel(locale, ADMIN_USERS_LABELS, 'email')}: {detail?.profile?.email || '-'}</p>
+          <p>{getAdminLabel(locale, ADMIN_USERS_LABELS, 'phone')}: {detail?.profile?.phone || '-'}</p>
           <div>
-            <Label>역할</Label>
+            <Label>{getAdminLabel(locale, ADMIN_USERS_LABELS, 'role')}</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="owner">owner</SelectItem>
-                <SelectItem value="ops_manager">ops_manager</SelectItem>
-                <SelectItem value="staff">staff</SelectItem>
-                <SelectItem value="finance">finance</SelectItem>
-                <SelectItem value="viewer">viewer</SelectItem>
+                <SelectItem value="owner">{getAdminLabel(locale, ADMIN_ROLE_LABELS, 'owner')}</SelectItem>
+                <SelectItem value="ops_manager">{getAdminLabel(locale, ADMIN_ROLE_LABELS, 'ops_manager')}</SelectItem>
+                <SelectItem value="staff">{getAdminLabel(locale, ADMIN_ROLE_LABELS, 'staff')}</SelectItem>
+                <SelectItem value="finance">{getAdminLabel(locale, ADMIN_ROLE_LABELS, 'finance')}</SelectItem>
+                <SelectItem value="viewer">{getAdminLabel(locale, ADMIN_ROLE_LABELS, 'viewer')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-2">
             <Switch checked={isActive} onCheckedChange={setIsActive} />
-            <span>활성 계정</span>
+            <span>{getAdminLabel(locale, ADMIN_USERS_LABELS, 'active_account')}</span>
           </div>
-          <Button onClick={save}>저장</Button>
+          <Button onClick={save}>{getAdminLabel(locale, ADMIN_COMMON_LABELS, 'save')}</Button>
         </CardContent>
       </Card>
     </div>

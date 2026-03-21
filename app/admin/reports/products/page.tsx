@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useAdminLocale } from '@/lib/admin-locale-context'
+import { ADMIN_REPORTS_LABELS, getAdminLabel } from '@/lib/admin-i18n'
 
 type Row = { product_name: string; qty: number; revenue: number }
 
@@ -12,6 +14,7 @@ function formatVND(amount: number) {
 }
 
 export default function AdminReportsProductsPage() {
+  const { locale } = useAdminLocale()
   const [rows, setRows] = useState<Row[]>([])
 
   useEffect(() => {
@@ -23,12 +26,12 @@ export default function AdminReportsProductsPage() {
         const response = await fetch('/api/admin/reports/products', { headers: { Authorization: `Bearer ${token}` } })
         const result = (await response.json()) as { error?: string; products?: Row[] }
         if (!response.ok) {
-          toast.error(result.error || '상품 리포트 조회 실패')
+          toast.error(result.error || getAdminLabel(locale, ADMIN_REPORTS_LABELS, 'load_failed'))
           return
         }
         setRows(result.products ?? [])
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : '상품 리포트 조회 중 오류')
+        toast.error(error instanceof Error ? error.message : getAdminLabel(locale, ADMIN_REPORTS_LABELS, 'load_error'))
       }
     }
     loadRows()
@@ -37,13 +40,13 @@ export default function AdminReportsProductsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <Card>
-        <CardHeader><CardTitle>상품별 매출</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{getAdminLabel(locale, ADMIN_REPORTS_LABELS, 'products_title')}</CardTitle></CardHeader>
         <CardContent className="space-y-2 text-sm">
-          {rows.length === 0 ? <p className="text-muted-foreground">데이터가 없습니다.</p> : rows.map((row) => (
+          {rows.length === 0 ? <p className="text-muted-foreground">{getAdminLabel(locale, ADMIN_REPORTS_LABELS, 'empty')}</p> : rows.map((row) => (
             <div key={row.product_name} className="border rounded-md p-3">
               <p className="font-medium">{row.product_name}</p>
-              <p>판매 수량 {row.qty}</p>
-              <p>매출 {formatVND(row.revenue)}</p>
+              <p>{getAdminLabel(locale, ADMIN_REPORTS_LABELS, 'sold_units_format').replace('{n}', String(row.qty))}</p>
+              <p>{getAdminLabel(locale, ADMIN_REPORTS_LABELS, 'revenue')} {formatVND(row.revenue)}</p>
             </div>
           ))}
         </CardContent>
