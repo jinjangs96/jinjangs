@@ -1,22 +1,52 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Flame, ArrowRight, Clock, Truck, Award } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { MOCK_HERO_BANNERS, MOCK_PRODUCTS, MOCK_SITE_SETTINGS } from '@/lib/mock-data'
+import { MOCK_SITE_SETTINGS } from '@/lib/mock-data'
 import { usePublicSettings } from '@/lib/use-public-settings'
+import { fetchProductsFromSupabase } from '@/lib/products/queries'
+import type { HeroBanner, Product } from '@/lib/types'
 
 function formatVND(amount: number) {
   return new Intl.NumberFormat('vi-VN').format(amount) + ' VND'
 }
 
 export default function HomePage() {
-  const activeBanners = MOCK_HERO_BANNERS.filter(b => b.is_active).sort((a, b) => a.sort_order - b.sort_order)
-  const popularProducts = MOCK_PRODUCTS.filter(p => p.is_popular && p.is_available).slice(0, 4)
+  const [activeBanners, setActiveBanners] = useState<HeroBanner[]>([])
+  const [popularProducts, setPopularProducts] = useState<Product[]>([])
+
+  useEffect(() => {
+    async function loadBanners() {
+      try {
+        const res = await fetch('/api/hero-banners')
+        const data = await res.json()
+        if (res.ok && Array.isArray(data)) {
+          setActiveBanners(data)
+        }
+      } catch {
+        setActiveBanners([])
+      }
+    }
+    loadBanners()
+  }, [])
+
+  useEffect(() => {
+    async function loadPopular() {
+      try {
+        const products = await fetchProductsFromSupabase()
+        const popular = products.filter(p => p.is_popular && p.is_available).slice(0, 4)
+        setPopularProducts(popular)
+      } catch {
+        setPopularProducts([])
+      }
+    }
+    loadPopular()
+  }, [])
   const { settings: publicSettings } = usePublicSettings()
   const settings = {
     ...MOCK_SITE_SETTINGS,
@@ -43,37 +73,94 @@ export default function HomePage() {
   const prevBanner = () => setCurrentBanner(prev => (prev - 1 + activeBanners.length) % activeBanners.length)
   const nextBanner = () => setCurrentBanner(prev => (prev + 1) % activeBanners.length)
 
+  const touchStartX = useRef<number | null>(null)
+  const SWIPE_THRESHOLD = 50
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (activeBanners.length <= 1) return
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (activeBanners.length <= 1 || touchStartX.current === null) return
+    const endX = e.changedTouches[0].clientX
+    const delta = endX - touchStartX.current
+    touchStartX.current = null
+    if (Math.abs(delta) < SWIPE_THRESHOLD) return
+    if (delta > 0) prevBanner()
+    else nextBanner()
+  }
+
   return (
     <div>
       {/* Hero Banner Carousel */}
       <section className="w-full bg-muted">
-        <div className="max-w-7xl mx-auto">
-          <div className="relative w-full aspect-[16/6] sm:aspect-[16/5] md:aspect-[16/4.5] overflow-hidden bg-muted">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 md:gap-4">
+          {/* Left nav - desktop only, outside banner */}
+          {activeBanners.length > 1 && (
+            <button
+              onClick={prevBanner}
+              className="hidden md:flex shrink-0 w-12 h-12 rounded-full bg-white/95 border border-border/60 shadow-md items-center justify-center text-stone-700 hover:bg-white hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all"
+              aria-label="Previous banner"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+          <div
+            className="flex-1 min-w-0 relative w-full aspect-[16/6] sm:aspect-[16/5] md:aspect-[16/4.5] overflow-hidden bg-muted"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            {activeBanners.length === 0 ? (
+              <div className="absolute inset-0 flex items-center">
+                <div className="absolute inset-0 bg-gradient-to-r from-foreground/60 via-foreground/30 to-transparent" />
+                <div className="relative w-full px-4 sm:px-6 md:px-8">
+                  <div className="max-w-xl">
+                    <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-white mb-2 sm:mb-3 text-balance">
+                      {settings.site_name_ko}
+                    </h1>
+                    <p className="text-white/90 text-sm sm:text-base mb-4 sm:mb-5 line-clamp-2">
+                      {settings.tagline_ko}
+                    </p>
+                    <Link href="/shop">
+                      <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                        메뉴 보기
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             {activeBanners.map((banner, index) => (
               <div
                 key={banner.id}
                 className={`absolute inset-0 transition-opacity duration-500 ${index === currentBanner ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
               >
-                {banner.link_url ? (
-                  <Link href={banner.link_url} className="block w-full h-full relative">
-                    <Image
-                      src={banner.image_url}
-                      alt={banner.alt_text}
-                      fill
-                      className="object-cover object-center"
-                      priority={index === 0}
-                    />
-                  </Link>
+                {banner.image_url ? (
+                  banner.link_url ? (
+                    <Link href={banner.link_url} className="block w-full h-full relative">
+                      <Image
+                        src={banner.image_url}
+                        alt={banner.alt_text}
+                        fill
+                        className="object-cover object-center"
+                        priority={index === 0}
+                      />
+                    </Link>
+                  ) : (
+                    <div className="w-full h-full relative">
+                      <Image
+                        src={banner.image_url}
+                        alt={banner.alt_text}
+                        fill
+                        className="object-cover object-center"
+                        priority={index === 0}
+                      />
+                    </div>
+                  )
                 ) : (
-                  <div className="w-full h-full relative">
-                    <Image
-                      src={banner.image_url}
-                      alt={banner.alt_text}
-                      fill
-                      className="object-cover object-center"
-                      priority={index === 0}
-                    />
-                  </div>
+                  <div className="w-full h-full bg-muted" />
                 )}
                 {/* Overlay with text */}
                 <div className="absolute inset-0 bg-gradient-to-r from-foreground/60 via-foreground/30 to-transparent" />
@@ -98,26 +185,6 @@ export default function HomePage() {
               </div>
             ))}
 
-            {/* Nav arrows */}
-            {activeBanners.length > 1 && (
-              <>
-                <button
-                  onClick={prevBanner}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors z-10"
-                  aria-label="Previous banner"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={nextBanner}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors z-10"
-                  aria-label="Next banner"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </>
-            )}
-
             {/* Dots */}
             {activeBanners.length > 1 && (
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
@@ -132,6 +199,16 @@ export default function HomePage() {
               </div>
             )}
           </div>
+          {/* Right nav - desktop only, outside banner */}
+          {activeBanners.length > 1 && (
+            <button
+              onClick={nextBanner}
+              className="hidden md:flex shrink-0 w-12 h-12 rounded-full bg-white/95 border border-border/60 shadow-md items-center justify-center text-stone-700 hover:bg-white hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all"
+              aria-label="Next banner"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
         </div>
       </section>
 
